@@ -62,6 +62,8 @@ inline YAML frontmatter).
 1. Clone to `~/.agents/`:
    ```bash
    git clone git@github.com:davidyoung77/dot-agents.git ~/.agents
+   # or via HTTPS:
+   git clone https://github.com/davidyoung77/dot-agents.git ~/.agents
    ```
 
 2. Copy `mcp.json.example` to `mcp.json` and add your API keys:
