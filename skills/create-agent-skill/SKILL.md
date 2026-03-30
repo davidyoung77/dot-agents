@@ -1,54 +1,51 @@
 ---
 name: create-agent-skill
 description: |
-  Create a new skill following the ~/.agents/ shared pattern.
-  Use when the user says "create skill", "new skill", or wants to add a skill
-  that works across Factory and Cursor.
+  Create a new skill, sub-agent, command, or rule following the ~/.agents/ shared pattern.
+  Use when the user says "create skill", "new skill", "new agent", "new droid",
+  "new command", or wants to add an agent artifact that works across Factory and Cursor.
 ---
 
-# Create Agent Skill
+# Create Agent Artifact
 
-Guide the user through creating a skill in the shared `~/.agents/` structure.
+Guide the user through creating agent artifacts in the `~/.agents/` structure.
+This follows the [Agent Skills community standard](https://agentskills.io/specification)
+([GitHub](https://github.com/agentskills/agentskills)) — `.agents/skills/` is the
+canonical location recognized by 40+ AI coding tools.
 
 ## Gather Requirements
 
-1. **Purpose**: What should this skill do?
-2. **Scope**: Personal (`~/.agents/skills/`) or project-specific (`.agents/skills/`)?
-3. **Trigger**: When should the agent apply this skill?
+1. **Type**: Skill, sub-agent, command, or rule?
+2. **Scope**: Personal (`~/.agents/`) or project-specific (`.agents/`)?
+3. **Purpose**: What should it do?
+4. **Trigger**: When should the agent apply this?
+5. **Key knowledge**: What does the agent need that it wouldn't already know?
 
-If the user has previous conversation context, infer answers from what was discussed.
+If you have previous conversation context, infer answers from what was discussed.
 
-## Create the Skill
+## Artifact Types
 
-### Personal skill (available across all projects)
+### Skills
 
-```
-~/.agents/skills/<skill-name>/SKILL.md
-```
+Interactive guides that walk the agent through a multi-step workflow.
 
-After creating, run `~/.agents/bin/sync-to-tools` to symlink it into Factory and Cursor.
-Add the skill name to the `ALL_SKILLS` array in `~/.agents/bin/sync-to-tools`.
+All skills live in `.agents/skills/` — the community-standard path.
+The `sync-to-tools` script creates directory-level symlinks so new skills
+are automatically available in both Cursor and Factory without re-running.
 
-### Project-specific skill (shared with the repo)
-
-```
-.agents/skills/<skill-name>/SKILL.md
-```
-
-Then symlink into each tool's project config:
 ```bash
-mkdir -p .factory/skills/<skill-name> .cursor/skills/<skill-name>
-ln -s "$(pwd)/.agents/skills/<skill-name>/SKILL.md" .factory/skills/<skill-name>/SKILL.md
-ln -s "$(pwd)/.agents/skills/<skill-name>/SKILL.md" .cursor/skills/<skill-name>/SKILL.md
+mkdir -p ~/.agents/skills/<skill-name>
 ```
 
-## SKILL.md Format
+Write `~/.agents/skills/<skill-name>/SKILL.md` following the
+[Agent Skills spec](https://agentskills.io/specification):
 
 ```markdown
 ---
 name: skill-name
 description: |
-  Brief description of what this skill does and when to use it.
+  Brief description of WHAT this skill does and WHEN to use it.
+  Include trigger terms the agent can match on.
 ---
 
 # Skill Title
@@ -57,22 +54,99 @@ description: |
 Clear, step-by-step guidance for the agent.
 ```
 
-### Frontmatter Rules
-- `name`: lowercase, hyphens, max 64 chars
-- `description`: max 1024 chars, include WHAT it does and WHEN to use it
+#### Frontmatter rules
 
-## Best Practices
+- `name`: lowercase, hyphens only, max 64 chars, must match directory name
+- `description`: max 1024 chars, third person, include WHAT and WHEN
+- See the full [spec](https://agentskills.io/specification) for optional fields
+  (`license`, `compatibility`, `metadata`, `allowed-tools`)
 
-- Keep SKILL.md under 500 lines
-- Use progressive disclosure: put details in separate reference files
-- Provide concrete examples, not abstract instructions
-- If the skill needs shared instruction files, put them in `~/.agents/instructions/`
-  and reference them from the skill
-- Use one term consistently throughout (don't mix synonyms)
+#### Supporting files
+
+For detailed reference material, use progressive disclosure:
+
+```
+~/.agents/skills/<skill-name>/
+├── SKILL.md              # Required — main instructions (under 500 lines)
+├── references/           # Optional — detailed docs loaded on demand
+├── scripts/              # Optional — executable code
+└── assets/               # Optional — templates, resources
+```
+
+Keep SKILL.md concise. Link to reference files for details:
+`For API details, see [references/api.md](references/api.md)`
+
+### Sub-agents (Cursor agents / Factory droids)
+
+Specialized agents spawned by commands or other agents to handle focused tasks.
+
+All sub-agents live in `~/.agents/sub-agents/` (source of truth).
+The sync script symlinks each `.md` file to `.cursor/agents/` and `.factory/droids/`.
+
+```bash
+mkdir -p ~/.agents/sub-agents
+```
+
+Write `~/.agents/sub-agents/<agent-name>.md` (flat file, not a directory):
+
+```markdown
+---
+name: agent-name
+description: Brief description of what this sub-agent does.
+model: fast
+---
+
+# Agent Title
+
+You are a specialized agent. [system prompt instructions here]
+```
+
+Sub-agents are flat `.md` files — no `SKILL.md` nesting.
+Use a `shared/` subdirectory for reference files multiple sub-agents share.
+
+### Commands
+
+Custom slash commands (`/command-name`) shared between Cursor and Factory.
+
+All commands live in `~/.agents/commands/` (source of truth).
+The sync script creates directory-level symlinks to `.cursor/commands/`
+and `.factory/commands/`.
+
+```bash
+mkdir -p ~/.agents/commands
+# Write a command as markdown (filename becomes /command-name)
+touch ~/.agents/commands/<command-name>.md
+```
+
+Commands support optional YAML frontmatter (`description`, `argument-hint`)
+and `$ARGUMENTS` expansion.
+
+### Rules
+
+Coding standards and conventions the agent should always follow.
+
+Rules live in `~/.agents/rules/` as `.md` files. The sync script:
+- Symlinks to `.factory/rules/`
+- Generates Cursor `.mdc` wrappers with appropriate frontmatter
+
+```bash
+echo "# My Rule" > ~/.agents/rules/<rule-name>.md
+```
 
 ## After Creation
 
-1. Verify the SKILL.md is well-formed
-2. For personal skills: run `~/.agents/bin/sync-to-tools` to symlink
-3. For project skills: create symlinks manually (shown above)
-4. Test the skill by invoking it in a conversation
+Run `~/.agents/bin/sync-to-tools` to activate the new artifact.
+Skills and commands use directory-level symlinks, so new files within
+existing directories are available immediately without re-running.
+
+For project-specific artifacts, the project's `scripts/setup-agent-links.sh`
+handles syncing via git hooks (post-merge, post-checkout).
+
+## Best Practices
+
+- Keep SKILL.md under 500 lines — the context window is shared with conversation
+- Only add knowledge the agent doesn't already have
+- Use consistent terminology (pick one term, stick with it)
+- Provide concrete examples, not abstract instructions
+- For fragile operations, use scripts over text instructions
+- Ensure artifacts are tool-neutral — avoid APIs specific to one tool
