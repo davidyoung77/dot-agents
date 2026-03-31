@@ -6,7 +6,7 @@
 #
 # What syncs (all auto-discovered, no hardcoded lists):
 #   mcp.json         → symlink to both tools
-#   skills/          → directory-level symlinks to both tools
+#   skills/*/        → file-level symlinks (avoids tool-managed files in .agents/)
 #   sub-agents/*.md  → symlinks to both tools (Factory droids + Cursor agents)
 #   commands/        → directory-level symlinks to both tools
 #   AGENTS.md        → Factory symlink + Cursor .mdc rule
@@ -119,10 +119,16 @@ ensure_symlink "$AGENTS/mcp.json" "$FACTORY/mcp.json" ".factory/mcp.json"
 ensure_symlink "$AGENTS/mcp.json" "$CURSOR/mcp.json"  ".cursor/mcp.json"
 $QUIET || echo ""
 
-# ── 2. Skills (directory-level symlinks) ─────────────────────
+# ── 2. Skills (file-level symlinks per skill directory) ──────
+# File-level avoids Cursor/Factory writing tool-managed files into .agents/
 log_header "Skills"
-ensure_symlink "$AGENTS/skills" "$FACTORY/skills" ".factory/skills → .agents/skills"
-ensure_symlink "$AGENTS/skills" "$CURSOR/skills-cursor" ".cursor/skills-cursor → .agents/skills"
+mkdir -p "$FACTORY/skills" "$CURSOR/skills-cursor" 2>/dev/null || true
+for skill_dir in "$AGENTS/skills"/*/; do
+    [[ -d "$skill_dir" ]] || continue
+    name=$(basename "$skill_dir")
+    ensure_symlink "$skill_dir" "$FACTORY/skills/$name" ".factory/skills/$name"
+    ensure_symlink "$skill_dir" "$CURSOR/skills-cursor/$name" ".cursor/skills-cursor/$name"
+done
 $QUIET || echo ""
 
 # ── 3. Sub-agents (file-level — shared/ dir uses absolute paths) ─
