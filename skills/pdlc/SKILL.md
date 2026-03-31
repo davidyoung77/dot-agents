@@ -19,6 +19,13 @@ Every project follows this pipeline. The discipline of completing each phase bef
 5. **Testing** -- Verify it works against real infrastructure
 6. **Feedback** -- Collect user feedback, feed back into requirements
 
+### Understood vs Exploratory Work
+
+Not all work enters the pipeline the same way:
+
+- **Understood work**: The team writes the feature specification, technical blueprint, acceptance criteria, and verification expectations before scaling implementation.
+- **Exploratory work**: The team starts with a short spike or discovery exercise, captures unknowns and learnings, then converts into a stronger specification. The first output may be reduced uncertainty rather than production code.
+
 ## Phase 1: Requirements
 
 Define product overview, business problem, personas, success metrics, and feature tree.
@@ -42,7 +49,7 @@ Translate requirements into technical blueprints/specs. This is the most importa
 - Feature blueprints: One per feature with detailed implementation specs
 - Each blueprint contains: schemas, queries, API contracts, algorithms, data models
 
-**Quality gate:** Run spec reviewer droids to catch cross-blueprint inconsistencies.
+**Quality gate:** Run spec reviewer droids to catch cross-blueprint inconsistencies. Self-authored blueprints should get multi-model spec review as a second pair of eyes.
 
 **Blueprint-first development:** Always consult blueprints before implementing. They should contain:
 - Exact schema field definitions (Zod, TypeScript interfaces, etc.)
@@ -70,6 +77,12 @@ Break blueprints into work items organized into phases with dependencies.
 **Tools:** 8090 Planner, Jira, Linear, GitHub Issues, plain markdown task lists
 
 ## Phase 4: Implementation
+
+### Code Review Model
+Agents and automation handle the first pass. The person who used the agent reviews the output before opening a PR. Peer review in GitHub focuses on high-risk, ambiguous, cross-module, or business-critical issues. Lower-risk changes can move with lighter-touch review.
+
+### Definition of Done
+A feature is not complete when the code is written. It is complete when the code AND the automated tests that demonstrate the specification is satisfied are delivered together.
 
 ### Single Work Item Workflow
 1. Read work item for scope and acceptance criteria
@@ -132,6 +145,48 @@ Collect user feedback from production, triage, and feed back into Phase 1 as new
 5. Run smoke test against real services (Docker Compose, local dev, etc.)
 6. Fix any runtime issues found during smoke test
 7. Mark all work items as completed
+
+---
+
+## Governance, Drift Detection & Traceability
+
+Enterprise alignment requires more than good code -- it requires evidence.
+
+### Traceability Chain
+
+Every deliverable should trace back through the pipeline:
+
+```
+requirement → blueprint → work order → commit → PR → test result
+```
+
+When using 8090, this chain is partially automated (WOs link to blueprints and requirements). For other tools, maintain explicit references in commit messages and PR descriptions.
+
+### Drift Detection
+
+Drift happens when implementation diverges from specs. Detect it at two levels:
+
+- **Blueprint drift** -- Run spec reviewer droids post-implementation to compare code against blueprints. Part of the post-mission review workflow.
+- **Requirements drift** -- Run PRD reviewer droids to verify implementation still satisfies original requirements. Catches scope creep and missed acceptance criteria.
+
+### Audit Trail
+
+Record what happened at each phase for reproducibility:
+
+- **Decisions**: Why a particular approach was chosen (captured in blueprint rationale, PR descriptions)
+- **Reviews**: Which models ran, what they found, what was accepted/rejected
+- **Approvals**: Human sign-off points (PR approvals, WO status transitions)
+- **Token usage & cost**: Track per-session and per-mission token consumption and model costs. Enables cost attribution per feature, phase, or work item.
+
+### Token & Cost Tracking
+
+When available, capture:
+- Tokens consumed per agent session (input + output)
+- Model used and cost per call
+- Aggregate cost per work item, mission, or phase
+- Cost trends over time to identify optimization opportunities
+
+This data supports budgeting conversations, ROI analysis, and right-sizing model selection (cheaper models for mechanical tasks, capable models for complex reasoning).
 
 ---
 
