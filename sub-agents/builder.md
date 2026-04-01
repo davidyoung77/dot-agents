@@ -3,7 +3,7 @@ name: builder
 description: >-
   Structured implementation agent for scoped coding tasks. Use for building features,
   writing tests, and implementing specs with a defined input/output contract.
-model: gpt-5.3-codex
+model: gpt-5.4
 reasoningEffort: high
 readonly: false
 ---
