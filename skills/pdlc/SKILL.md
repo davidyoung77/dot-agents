@@ -1,12 +1,21 @@
 ---
 name: pdlc
 description: |
-  Product Development Lifecycle covering the full pipeline from requirements through architecture,
-  planning, implementation, and validation. Tool-agnostic -- works with 8090, Jira, Linear,
-  or plain markdown specs. Use when working on any structured software project.
+  Top-level lifecycle skill covering the full pipeline from requirements through architecture,
+  planning, implementation, validation, and feedback. Tool-agnostic -- works with 8090, Jira,
+  Linear, or plain markdown specs. Use when working on any structured software project.
 ---
 
 # Product Development Lifecycle (PDLC)
+
+## How To Use This Skill
+
+Use `pdlc` as the umbrella workflow for structuring software work from requirements through feedback.
+
+- Stay in `pdlc` when defining requirements, writing blueprints, planning work, or deciding which execution workflow fits.
+- When execution needs a specialized subflow, hand off to a narrower skill instead of stretching `pdlc` into task-level instructions.
+- Use the `mission` skill for bulk implementation of 4+ interdependent work items, then choose the target output mode that fits the tool you are using.
+- `pdlc` defines lifecycle discipline, quality gates, and traceability. It is not itself a durable mission runtime or worker supervisor.
 
 ## The Pipeline
 
@@ -93,10 +102,12 @@ A feature is not complete when the code is written. It is complete when the code
 6. Commit with conventional commits: `feat(ITEM-ID): description`
 7. Set status to completed
 
-### Mission-Based Implementation
-For bulk implementation (4+ interdependent items), use the **mission skill** (`~/.factory/skills/mission/SKILL.md`).
+If the PM tool distinguishes "ready for review" from "fully complete", use the tool's review state before final completion.
 
-The mission skill handles prompt generation, work item status management, and post-mission review checklists -- agnostic to PM tool.
+### Mission-Based Implementation
+For bulk implementation of 4+ interdependent items, use the **mission skill** (`~/.agents/skills/mission/SKILL.md`) as the implementation subflow inside PDLC.
+
+The mission skill handles milestone grouping, mission brief generation, tool-specific rendering, work item status conventions, and post-mission review checklists while `pdlc` remains the lifecycle and governance layer.
 
 ## Phase 5: Testing & Verification
 
@@ -138,6 +149,8 @@ Collect user feedback from production, triage, and feed back into Phase 1 as new
 - Delegate mechanical code generation to workers, keep orchestration decisions in main session
 
 ### Post-Mission Review Workflow
+When a mission-driven implementation batch completes, use the `mission` skill's checklist as the concrete runbook. The lifecycle quality gate is:
+
 1. Run 3 code reviewers in parallel (opus, gpt, gemini)
 2. Run 3 spec reviewers for blueprint drift (if blueprints exist)
 3. Run 3 PRD reviewers for requirements coverage (if PRDs exist)

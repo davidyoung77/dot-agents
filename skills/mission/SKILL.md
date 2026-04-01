@@ -1,14 +1,26 @@
 ---
 name: mission
 description: |
-  Generate structured Factory Mission prompts from work items. Use when planning a mission
-  with 4+ interdependent work items from any source (8090, Jira, Linear, markdown list).
-  Handles prompt generation, work item status conventions, and post-mission review checklist.
+  Prepare mission briefs and operator runbooks for bulk implementation of 4+ interdependent
+  work items from any source (8090, Jira, Linear, markdown list). Tool-agnostic at the
+  core model level, with concrete output modes such as Factory mission prompts, generic
+  markdown runbooks, and local orchestrator briefs.
 ---
 
-# Factory Mission Prompt Generator
+# Mission Skill
 
-You help the user prepare and execute Factory Missions for bulk implementation of interdependent work items.
+You help the user prepare and execute mission-style bulk implementation workflows for interdependent work items.
+
+## Role In The Workflow
+
+- Use this skill after requirements, architecture, and planning have already produced scoped work items with acceptance criteria and dependencies.
+- This skill is the bulk-implementation subflow inside `pdlc`; it does not replace the broader lifecycle.
+- Work items may come from 8090, Jira, Linear, or manual lists.
+- The core mission model is tool-agnostic: milestones, dependencies, status conventions, test commands, off-limits, and post-mission validation steps.
+- Ask which target output mode the user wants before generating the final artifact: `factory`, `generic_markdown`, or `local_orchestrator`.
+- If the user already implies a target tool, use it. If not, default to `generic_markdown`.
+- This skill helps the orchestrator prepare the mission brief, milestone structure, PM status instructions, and post-mission validation steps.
+- This skill is not a durable mission runtime: pause/resume, supervision, persistent state, and recovery remain the responsibility of the orchestrator and tooling around it.
 
 ## When to Use Missions
 
@@ -21,7 +33,7 @@ Missions are appropriate when:
 Missions are NOT appropriate when:
 - Single tickets or isolated bug fixes
 - Items have no shared dependencies
-- Work is exploratory or research-only
+- Work is exploratory or research-only; stay in `pdlc` and run discovery/spike work first
 
 ## Step 1: Gather Work Items
 
@@ -43,7 +55,15 @@ Organize work items into 2-5 milestones based on dependencies:
 
 Present the grouping to the user for approval before generating the prompt.
 
-## Step 3: Generate Mission Prompt
+## Step 3: Choose Output Mode
+
+Before rendering the final artifact, confirm the target output mode:
+
+- `factory`: Generate a Factory-style mission prompt and operator runbook.
+- `generic_markdown`: Generate a tool-neutral mission brief in markdown.
+- `local_orchestrator`: Generate a brief optimized for the main session to orchestrate workers directly.
+
+## Step 4: Generate Canonical Mission Brief
 
 Use this template, filling in project-specific details:
 
@@ -65,13 +85,14 @@ Update each work item's status as you progress:
 - **Implementation + tests pass**: Set status to "in_review" (via [TOOL_NAME])
 - Never leave items in backlog/todo once work has begun
 - Update per-item, not in bulk at milestone end
+- If the PM tool does not have an explicit review-ready state, adapt this to the closest equivalent
 
 [Include the specific tool call syntax for the user's PM tool, e.g.:]
 [8090: edit_work_order(work_order_id=UUID, status="in_progress")]
 [Jira: atlassian___transitionJiraIssue(issueIdOrKey, transition)]
 
 ## Conventions
-- Follow `.factory/AGENTS.md` (or project AGENTS.md) for architecture and code style
+- Follow the project's shared coding standards (`AGENTS.md`, `.factory/AGENTS.md`, or equivalent)
 - Git commits: `feat(ITEM-ID): description`
 - Typecheck and unit tests must pass at each milestone boundary
 
@@ -82,6 +103,21 @@ Update each work item's status as you progress:
 ## Off-Limits
 - [Any packages/files the mission should not modify]
 ```
+
+### Render By Output Mode
+
+**Factory**
+- Render the canonical brief as a Factory-style mission prompt.
+- Keep PM status instructions inline with the prompt.
+- Preserve the post-mission checklist for the orchestrator.
+
+**Generic Markdown**
+- Render the canonical brief as plain markdown with no Factory-specific wording.
+- Preserve milestones, dependencies, constraints, status instructions, and the post-mission checklist.
+
+**Local Orchestrator**
+- Render the canonical brief as an orchestrator runbook for the main session.
+- Call out what stays in the orchestrator, what should be delegated to workers, and which review agents should run after implementation.
 
 ### Tool-Specific Status Instructions
 
@@ -102,7 +138,7 @@ transitionJiraIssue to move the issue. Typical flow: To Do → In Progress → I
 Omit the status management section entirely.
 ```
 
-## Step 4: Post-Mission Checklist
+## Step 5: Post-Mission Checklist
 
 After the mission completes, present this checklist to the orchestrator (the user/Droid session running the mission):
 
@@ -145,6 +181,6 @@ as completed in the PM tool.
 ## Notes
 
 - The mission itself should NOT run reviewers. That's the orchestrator's job post-mission.
-- Reviewer droids are personal droids in `~/.factory/droids/` — they work across any project.
+- Reviewer agents/droids live in `~/.agents/sub-agents/` and are synced into the supported tools.
 - If some reviewer models timeout (common with gemini), results from 2/3 models is sufficient.
 - Smoke tests catch what reviewers can't: shared resource contention, connection pool exhaustion, cold-start hangs.
