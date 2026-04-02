@@ -21,7 +21,7 @@ post inline comments where they belong.
 |---|---|
 | "review this PR", "review PR #N", shares a PR URL | Full review flow |
 | "just run the tests on this PR" | Skip droid dispatch and posting; run local validation only |
-| "post the review" | Post previously approved findings if a saved report/payload exists |
+| "post the review" | Post previously approved findings from a saved report/payload when available |
 
 ## Flow
 
@@ -43,15 +43,20 @@ gh pr diff <number>
 4. Resolve artifact locations:
    - Worktree path: `~/git/worktrees/<REPO_NAME>/pr-<NUMBER>`
    - Report directory: first look for agent output/work artifact guidance in `AGENTS.md`, `.agents/AGENTS.md`, `.factory/AGENTS.md`, or `.agent/AGENTS.md`
-   - If no repo-specific artifact directory is defined, fall back to `.factory/pr-reviews/reports/`
-5. If using the fallback `.factory/pr-reviews/` path, ensure it is gitignored before writing artifacts there.
-6. Fetch and retain:
+   - If no repo-specific artifact directory is defined, fall back to `.agents/work/pr-reviews/`
+5. If using the fallback `.agents/work/` path, ensure the whole `.agents/work/` tree is ignored before writing there.
+   - Prefer `.git/info/exclude` for local-only artifacts
+   - Only update tracked `.gitignore` if the repo explicitly wants a shared ignore rule
+6. If the user invoked "post the review" directly, first look in `<REPORT_DIR>` for the latest saved review report and saved payload for this PR.
+   - If found, treat them as the source of truth, confirm with the user, and jump to Step 9
+   - If not found, tell the user no saved review exists and ask whether to run the full review flow
+7. Fetch and retain:
    - PR metadata
    - full diff
    - changed file list
    - diff stats
    - linked tickets if present
-7. Print a short summary for the user:
+8. Print a short summary for the user:
    - PR title and number
    - base <- head
    - additions/deletions and changed-file count
@@ -105,7 +110,7 @@ Run the project's test suite inside the worktree. Capture:
 - Whether failures appear introduced by the PR or are likely pre-existing
 
 If tests require auth/credentials and fail at auth step:
-- Check for project-specific refresh commands (`.factory/commands/refresh-tokens.md`)
+- Check for project-specific refresh commands (`.agents/commands/refresh-tokens.md` or legacy `.factory/commands/refresh-tokens.md`)
 - Check for auth helper scripts
 - Report the auth blocker clearly -- do NOT silently skip tests
 
@@ -186,7 +191,7 @@ Then consolidate:
 - Group by severity: Critical > High > Medium > Low
 - Include positive findings too (good patterns, nice changes)
 
-### 7. Write a Durable Review Report
+### 7. Write Durable Review Artifacts
 
 Before asking to post, write a markdown review report to `<REPORT_DIR>/pr-<NUMBER>-review.md`.
 
@@ -199,10 +204,11 @@ Include:
 - which droids agreed on each finding
 - the proposed review action: `APPROVE`, `REQUEST_CHANGES`, or `COMMENT`
 
-Save large intermediate artifacts when useful:
+Save intermediate artifacts when useful:
 - raw reviewer outputs
 - saved diff file for large PRs
-- review payload JSON before posting
+
+If the user later says "post the review", reuse the saved review report and payload when available instead of recomputing everything.
 
 ### 8. Present to User for Approval
 
@@ -224,6 +230,8 @@ Use the GitHub API to post a proper review with inline comments:
 ```bash
 gh api repos/{owner}/{repo}/pulls/{number}/reviews --method POST --input review.json
 ```
+
+Before posting, write the final review payload to `<REPORT_DIR>/pr-<NUMBER>-review-payload.json` and use that file as the retryable source of truth.
 
 The review JSON structure:
 ```json
@@ -269,9 +277,11 @@ Severity levels:
 
 ### 10. Cleanup and Recovery
 
-1. Remove the detached worktree when review work is complete.
-2. Keep the markdown report and any saved payloads/artifacts in the report directory.
-3. If posting fails, keep the review payload on disk and show the retry command.
+1. Remove the detached worktree only after:
+   - the review was posted successfully, or
+   - the user explicitly decides to stop without further retries
+2. Keep the markdown report and saved payload/artifacts in the report directory.
+3. If posting fails, keep the saved payload on disk, keep the worktree available for retry/debugging, and show the retry command.
 
 ## Important Notes
 

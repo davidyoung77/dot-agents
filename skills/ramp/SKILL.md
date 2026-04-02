@@ -2,7 +2,7 @@
 name: ramp
 description: |
   Systematically onboard onto a new codebase. Reads project config, maps structure,
-  discovers conventions, test commands, and Factory assets. Use when opening a new
+  discovers conventions, test commands, and project agent assets. Use when opening a new
   project or saying "ramp me up", "explore this codebase", or "what is this project".
 ---
 
@@ -16,9 +16,8 @@ Systematically explore and summarize a codebase so you can work effectively in i
 
 Read these files (skip any that don't exist):
 - `README.md` / `README`
-- `AGENTS.md` / `.factory/AGENTS.md`
+- `AGENTS.md` / `.agents/AGENTS.md` / `.factory/AGENTS.md`
 - `package.json` / `pyproject.toml` / `Cargo.toml` / `go.mod` / `pom.xml`
-- `.factory/memories.md`
 
 Extract: project name, description, language(s), framework(s).
 
@@ -46,18 +45,19 @@ Discover how to build, test, and lint:
 - Check `package.json` scripts
 - Check `pyproject.toml` scripts
 - Check `Dockerfile` / `docker-compose.yml` for services
-- Check `.factory/services.yaml` for Factory-managed services
+- Check `.factory/services.yaml` for project-managed services, if present
 
 Present as a table: `| Action | Command |`
 
-### 5. Factory Assets
+### 5. Project Agent Assets
 
-Check for project-level Factory configuration:
-- `.factory/skills/` -- list skills with descriptions
-- `.factory/droids/` -- list droids
-- `.factory/commands/` -- list commands
-- `.factory/services.yaml` -- list services
-- `.factory/AGENTS.md` -- summarize key conventions
+Check for project-level agent configuration, preferring `.agents/` but also inspecting
+legacy `.factory/` locations when present:
+- `.agents/skills/` or `.factory/skills/` -- list skills with descriptions
+- `.agents/sub-agents/` or `.factory/droids/` -- list sub-agents/droids
+- `.agents/commands/` or `.factory/commands/` -- list commands
+- `.agents/AGENTS.md` or `.factory/AGENTS.md` -- summarize key conventions
+- `.factory/services.yaml` -- list services if present
 
 ### 6. Git Context
 
@@ -95,8 +95,8 @@ Present a structured summary:
 ### Conventions
 - [Key conventions from AGENTS.md]
 
-### Factory Assets
-- [N] project skills, [N] droids, [N] commands
+### Agent Assets
+- [N] project skills, [N] sub-agents/droids, [N] commands
 - [Notable items]
 
 ### Recent Activity

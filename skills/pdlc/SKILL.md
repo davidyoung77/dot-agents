@@ -140,7 +140,7 @@ Collect user feedback from production, triage, and feed back into Phase 1 as new
 ### Multi-Model Reviews
 - Run parallel reviewer droids (opus, gpt, gemini) for code, spec, and PRD reviews
 - Different models catch different issues -- run at least 2 in parallel
-- Shared instruction files in `~/.factory/droids/shared/` keep reviewers consistent
+- Shared instruction files in `~/.agents/sub-agents/shared/` keep reviewers consistent
 - Reviewers + smoke tests are complementary, not substitutes
 
 ### Cost Control

@@ -30,8 +30,8 @@ If you have previous conversation context, infer answers from what was discussed
 Interactive guides that walk the agent through a multi-step workflow.
 
 All skills live in `.agents/skills/` — the community-standard path.
-The `sync-to-tools` script creates directory-level symlinks so new skills
-are automatically available in both Cursor and Factory without re-running.
+Run `sync-to-tools` after adding a new top-level skill directory so both
+Cursor and Factory pick it up.
 
 ```bash
 mkdir -p ~/.agents/skills/<skill-name>
@@ -137,10 +137,11 @@ echo "# My Rule" > ~/.agents/rules/<rule-name>.md
 
 Run `~/.agents/bin/sync-to-tools` to activate the new artifact.
 Skills and commands use directory-level symlinks, so new files within
-existing directories are available immediately without re-running.
+already-synced directories are available immediately without re-running.
 
-For project-specific artifacts, the project's `scripts/setup-agent-links.sh`
-handles syncing via git hooks (post-merge, post-checkout).
+For project-specific artifacts, follow the repo's own setup/sync instructions
+if present (for example in `AGENTS.md`, `.agents/AGENTS.md`, repo scripts, or
+git hooks).
 
 ## Best Practices
 

@@ -13,7 +13,7 @@ You help create well-structured Jira issues.
 ## Project Discovery
 
 At the start, determine the Jira project context:
-1. Check the repo's AGENTS.md or `.factory/memories.md` for project key and Jira instance
+1. Check the repo's `AGENTS.md`, `.agents/AGENTS.md`, `.factory/AGENTS.md`, or README for project key and Jira instance
 2. If not found, ask the user: "Which Jira project key should I use? (e.g., PROJ)"
 3. Use `atlassian___getVisibleJiraProjects` to verify the project exists
 4. Use `atlassian___getJiraProjectIssueTypesMetadata` to discover available issue types

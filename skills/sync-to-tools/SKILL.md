@@ -31,8 +31,9 @@ All items are auto-discovered — no hardcoded lists in the script.
 | Source | Targets | Method |
 |--------|---------|--------|
 | `~/.agents/mcp.json` | `.factory/mcp.json`, `.cursor/mcp.json` | symlink |
-| `~/.agents/skills/*/SKILL.md` | `.factory/skills/`, `.cursor/skills-cursor/` | symlink |
+| `~/.agents/skills/*/` | `.factory/skills/<name>`, `.cursor/skills-cursor/<name>` | symlink |
 | `~/.agents/sub-agents/*.md` | `.factory/droids/`, `.cursor/agents/` | symlink |
+| `~/.agents/commands/` | `.factory/commands/`, `.cursor/commands/` | symlink |
 | `~/.agents/AGENTS.md` | `.factory/rules/coding-standards.md` | symlink |
 | `~/.agents/AGENTS.md` | `.cursor/rules/personal-coding-standards.mdc` | generated .mdc |
 | `~/.agents/rules/*.md` | `.factory/rules/`, `.cursor/rules/*.mdc` | symlink + generated .mdc |
@@ -40,8 +41,9 @@ All items are auto-discovered — no hardcoded lists in the script.
 ## Direction
 
 `~/.agents/` is the source of truth. Edit sub-agents, skills, rules, and AGENTS.md
-there, then run this skill to push changes to both tools. Adding a new file to
-`sub-agents/` or `skills/` is automatically picked up on the next sync — no script edits needed.
+there, then run this skill to push changes to both tools. Adding a new top-level
+entry under `sub-agents/`, `skills/`, `rules/`, or `commands/` is picked up on the
+next sync — no script edits needed.
 
 ## Script Location
 

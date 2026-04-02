@@ -62,7 +62,11 @@ jq -s --arg sid "$WORKER_SESSION_ID" '
 
 4. **Worker skill** (use `skillName` from the feature):
 ```bash
-cat .factory/skills/<skillName>/SKILL.md
+if [ -f ".agents/skills/<skillName>/SKILL.md" ]; then
+  cat ".agents/skills/<skillName>/SKILL.md"
+else
+  cat ".factory/skills/<skillName>/SKILL.md"
+fi
 ```
 
 ## 2) Code Review

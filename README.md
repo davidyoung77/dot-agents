@@ -104,5 +104,8 @@ No script edits needed — everything is auto-discovered.
   (agents). Each tool reads its own fields and ignores the rest.
 - **Memory at orchestrator level**: Sub-agents don't manage memory. The
   orchestrator (main agent) reads `memories.md` via the always-on AGENTS.md rule.
+- **Repo-local runtime artifacts**: For project repos, ephemeral agent output
+  (reports, payloads, working files) belongs under `.agents/work/` and the whole
+  tree should be gitignored.
 - **Diversity-of-opinion reviews**: 3 model variants per review type, with a
   shared rule that tells the orchestrator to fan out and synthesize results.

@@ -92,7 +92,7 @@ Update each work item's status as you progress:
 [Jira: atlassian___transitionJiraIssue(issueIdOrKey, transition)]
 
 ## Conventions
-- Follow the project's shared coding standards (`AGENTS.md`, `.factory/AGENTS.md`, or equivalent)
+- Follow the project's shared coding standards (`AGENTS.md`, `.agents/AGENTS.md`, `.factory/AGENTS.md`, or equivalent)
 - Git commits: `feat(ITEM-ID): description`
 - Typecheck and unit tests must pass at each milestone boundary
 

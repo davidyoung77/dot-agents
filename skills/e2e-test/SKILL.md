@@ -155,7 +155,7 @@ test creation.
      Group related findings into single stories rather than 1:1 mapping.
    - **Generate tests** for discovered flows (switches to Autonomous mode)
    - **Deep-dive** into a specific page or section
-   - **Save** the report to `.agents/work/`
+  - **Save** the report to `.agents/work/` (gitignored runtime output)
 
 ### Depth Control
 
