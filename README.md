@@ -20,8 +20,7 @@ personal sub-agents, skills, rules, and coding standards — synced to
 │   ├── code-reviewer-gemini.md
 │   ├── spec-reviewer-*.md       # Spec reviewers (3 variants)
 │   ├── prd-reviewer-*.md        # PRD reviewers (3 variants)
-│   └── shared/                  # Instruction bodies referenced by agents
-│       ├── builder-guidelines.md
+│   └── shared/                  # Only for instruction bodies reused by 2+ agents
 │       ├── code-review.md
 │       ├── spec-review.md
 │       └── prd-review.md
@@ -38,7 +37,8 @@ personal sub-agents, skills, rules, and coding standards — synced to
 ## How It Works
 
 **Sub-agents** use unified YAML frontmatter that both tools parse, each reading
-only the fields it understands:
+only the fields it understands. Keep instructions inline by default; use `shared/`
+only when multiple agents reuse the same instruction body:
 
 ```yaml
 ---

@@ -16,9 +16,31 @@ Use this skill to create a new sub-agent that works in both Factory and Cursor v
    - Read-only? (`true` for reviewers/analyzers, `false` for builders/implementers)
    - Factory reasoning effort (`low`, `medium`, `high`, `xhigh`, `max`) — skip if model is `inherit`
    - Factory tools list (e.g. `["Read", "Grep", "Glob", "LS"]`) — optional
-   - Whether it needs a new shared instruction file or references an existing one
+   - Whether instructions should be inline or shared with other agents
 
 2. **Create the sub-agent definition** at `~/.agents/sub-agents/<name>.md`:
+
+By default, keep instructions inline in the sub-agent file. Use `shared/` only when the same instruction body will be referenced by 2 or more agents.
+
+```markdown
+---
+name: <name>
+description: <description>
+model: <model>
+reasoningEffort: <effort>
+tools: <tools-array>
+readonly: <true|false>
+---
+<inline instructions here>
+```
+
+Only include `reasoningEffort` and `tools` if values were provided. Omit them for `model: inherit` agents.
+
+3. **Create shared instructions only when needed** at `~/.agents/sub-agents/shared/<instruction-file>.md`:
+   - Write tool-neutral instructions (no Factory or Cursor framing)
+   - Focus on the task, checklist, and expected output format
+   - Only create a shared file when multiple sub-agents will reference it (e.g. the 3-model reviewer pattern)
+   - In that case, the sub-agent file should point to the shared file:
 
 ```markdown
 ---
@@ -31,13 +53,6 @@ readonly: <true|false>
 ---
 Before doing anything else, read the shared instructions file at `~/.agents/sub-agents/shared/<instruction-file>.md` and follow them exactly.
 ```
-
-Only include `reasoningEffort` and `tools` if values were provided. Omit them for `model: inherit` agents.
-
-3. **Create shared instructions** (if new) at `~/.agents/sub-agents/shared/<instruction-file>.md`:
-   - Write tool-neutral instructions (no Factory or Cursor framing)
-   - Focus on the task, checklist, and expected output format
-   - Multiple sub-agents can reference the same instruction file (e.g. the 3-model reviewer pattern)
 
 4. **For multi-model variants** (diversity-of-opinion pattern):
    - Create one instruction file in `shared/`
