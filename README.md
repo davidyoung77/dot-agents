@@ -2,7 +2,8 @@
 
 Portable, tool-agnostic AI agent configuration. Single source of truth for
 personal sub-agents, skills, rules, and coding standards — synced to
-[Factory](https://factory.ai) and [Cursor](https://cursor.com) via symlinks.
+[Factory](https://factory.ai) and [Cursor](https://cursor.com) via a mix of
+symlinks and generated/copied files.
 
 ## Structure
 
@@ -15,7 +16,7 @@ personal sub-agents, skills, rules, and coding standards — synced to
 │   └── sync-to-tools            # Idempotent sync script
 ├── sub-agents/                  # Unified agent definitions
 │   ├── builder.md               # Implementation agent
-│   ├── code-reviewer-opus.md    # 3-model diversity pattern
+│   ├── code-reviewer-opus.md    # Reviewer family for review diversity
 │   ├── code-reviewer-gpt.md
 │   ├── code-reviewer-gemini.md
 │   ├── spec-reviewer-*.md       # Spec reviewers (3 variants)
@@ -25,10 +26,10 @@ personal sub-agents, skills, rules, and coding standards — synced to
 │       ├── spec-review.md
 │       └── prd-review.md
 ├── rules/                       # Shared rules applied to all conversations
-│   └── diversity-review.md      # Fan-out to 3 model variants for reviews
+│   └── diversity-review.md      # Capability-aware review diversity guidance
 └── skills/                      # Reusable workflow skills (14)
     ├── commit/                  # Conventional commit workflow
-    ├── pr/                      # Pull request creation
+    ├── pr-create/               # Pull request creation
     ├── pr-review/               # PR review orchestration
     ├── pdlc/                    # Product development lifecycle
     └── ...
@@ -53,9 +54,16 @@ Before doing anything else, read the shared instructions file at
 `~/.agents/sub-agents/shared/code-review.md` and follow them exactly.
 ```
 
-**Skills** and **sub-agents** are symlinked into both tools. **Rules** are
-symlinked to Factory and generated as `.mdc` files for Cursor (which requires
-inline YAML frontmatter).
+**Skills** are symlinked into both tools. **Sub-agents** are symlinked into
+Factory and copied as real files into `~/.cursor/agents/` because Cursor
+subagent discovery is not reliable with symlinks. **Rules** are symlinked to
+Factory and generated as `.mdc` files for Cursor (which requires inline YAML
+frontmatter).
+
+For Cursor specifically, treat `~/.cursor/agents/` as the documented global
+path, but not the only reliable runtime path. If Cursor does not surface a
+personal sub-agent in a given repo, copy the needed agent into that repo's
+`.cursor/agents/` directory as a real file.
 
 ## Setup
 
@@ -98,8 +106,10 @@ No script edits needed — everything is auto-discovered.
 
 ## Design Decisions
 
-- **Symlinks over generation**: Sub-agents and skills are symlinked, not copied.
-  Edit once in `~/.agents/`, both tools see the change immediately.
+- **Source of truth over tool-local edits**: `~/.agents/` remains canonical.
+  Skills are symlinked to both tools, Factory droids are symlinked, and Cursor
+  user-scope sub-agents are copied as real files because symlink discovery is
+  unreliable there.
 - **Unified frontmatter**: One file serves both Factory (droids) and Cursor
   (agents). Each tool reads its own fields and ignores the rest.
 - **Memory at orchestrator level**: Sub-agents don't manage memory. The
@@ -107,5 +117,6 @@ No script edits needed — everything is auto-discovered.
 - **Repo-local runtime artifacts**: For project repos, ephemeral agent output
   (reports, payloads, working files) belongs under `.agents/work/` and the whole
   tree should be gitignored.
-- **Diversity-of-opinion reviews**: 3 model variants per review type, with a
-  shared rule that tells the orchestrator to fan out and synthesize results.
+- **Diversity-of-opinion reviews**: Prefer true cross-model review diversity on
+  platforms that support distinct model assignment per reviewer; otherwise use
+  prompt-diverse reviewer families and be explicit about the limitation.

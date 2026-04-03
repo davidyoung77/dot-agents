@@ -7,7 +7,7 @@
 # What syncs (all auto-discovered, no hardcoded lists):
 #   mcp.json         → symlink to both tools
 #   skills/*/        → file-level symlinks (avoids tool-managed files in .agents/)
-#   sub-agents/*.md  → symlinks to both tools (Factory droids + Cursor agents)
+#   sub-agents/*.md  → symlinks to Factory, real files in Cursor
 #   commands/        → directory-level symlinks to both tools
 #   AGENTS.md        → Factory symlink + Cursor .mdc rule
 #   rules/*.md       → Factory symlink + Cursor .mdc rule
@@ -17,6 +17,8 @@ set -euo pipefail
 AGENTS="$HOME/.agents"
 FACTORY="$HOME/.factory"
 CURSOR="$HOME/.cursor"
+CURSOR_SYNC_STATE_DIR="$CURSOR/.agents-sync"
+CURSOR_AGENT_MANIFEST="$CURSOR_SYNC_STATE_DIR/managed-agents.txt"
 
 DRY_RUN=false; QUIET=false
 for arg in "$@"; do
@@ -99,10 +101,31 @@ ensure_symlink() {
     log_sync "$label"
 }
 
+copy_file() {
+    local src="$1" dst="$2" label="$3"
+    local note=""
+    if [[ -L "$dst" ]]; then
+        note=" (replaced symlink with file copy)"
+    elif [[ -f "$dst" ]] && cmp -s "$src" "$dst"; then
+        log_skip "$label"
+        return
+    elif [[ -f "$dst" ]]; then
+        note=" (updated file copy)"
+    fi
+    if $DRY_RUN; then
+        log_sync "$label (dry-run, would write real file)"
+        return
+    fi
+    mkdir -p "$(dirname "$dst")"
+    rm -f "$dst"
+    cp "$src" "$dst"
+    log_sync "$label$note"
+}
+
 prune_stale_symlinks() {
     local dst_dir="$1" src_prefix="$2" label_prefix="$3"
     local entry target name
-    [[ -d "$dst_dir" ]] || return
+    [[ -d "$dst_dir" ]] || return 0
     shopt -s nullglob
     for entry in "$dst_dir"/*; do
         [[ -L "$entry" ]] || continue
@@ -113,6 +136,18 @@ prune_stale_symlinks() {
         remove_path "$entry" "$label_prefix$name"
     done
     shopt -u nullglob
+}
+
+prune_manifest_managed_files() {
+    local manifest="$1" target_dir="$2" current_names="$3" label_prefix="$4"
+    local name
+    [[ -f "$manifest" ]] || return 0
+    while IFS= read -r name; do
+        [[ -n "$name" ]] || continue
+        if ! grep -Fxq "$name" "$current_names" 2>/dev/null; then
+            remove_path "$target_dir/$name" "$label_prefix$name"
+        fi
+    done < "$manifest"
 }
 
 write_if_changed() {
@@ -137,7 +172,7 @@ write_if_changed() {
 
 prune_generated_cursor_rule_files() {
     local dst_dir="$1" entry name
-    [[ -d "$dst_dir" ]] || return
+    [[ -d "$dst_dir" ]] || return 0
     shopt -s nullglob
     for entry in "$dst_dir"/*.mdc; do
         [[ -f "$entry" ]] || continue
@@ -175,16 +210,26 @@ prune_stale_symlinks "$FACTORY/skills" "$AGENTS/skills/" ".factory/skills/"
 prune_stale_symlinks "$CURSOR/skills-cursor" "$AGENTS/skills/" ".cursor/skills-cursor/"
 $QUIET || echo ""
 
-# ── 3. Sub-agents (file-level — shared/ dir uses absolute paths) ─
+# ── 3. Sub-agents (Factory uses symlinks; Cursor uses real files) ─
 log_header "Sub-agents"
+current_cursor_agents=$(mktemp "${TMPDIR:-/tmp}/cursor-agents.XXXXXX")
 for agent_file in "$AGENTS/sub-agents"/*.md; do
     [[ -f "$agent_file" ]] || continue
     name=$(basename "$agent_file")
     ensure_symlink "$agent_file" "$FACTORY/droids/$name" ".factory/droids/$name"
-    ensure_symlink "$agent_file" "$CURSOR/agents/$name"  ".cursor/agents/$name"
+    copy_file "$agent_file" "$CURSOR/agents/$name" ".cursor/agents/$name"
+    printf '%s\n' "$name" >> "$current_cursor_agents"
 done
 prune_stale_symlinks "$FACTORY/droids" "$AGENTS/sub-agents/" ".factory/droids/"
-prune_stale_symlinks "$CURSOR/agents" "$AGENTS/sub-agents/" ".cursor/agents/"
+prune_manifest_managed_files "$CURSOR_AGENT_MANIFEST" "$CURSOR/agents" "$current_cursor_agents" ".cursor/agents/"
+if [[ -s "$current_cursor_agents" ]]; then
+    mkdir -p "$CURSOR_SYNC_STATE_DIR"
+    write_if_changed "$CURSOR_AGENT_MANIFEST" "$(cat "$current_cursor_agents")" \
+        ".cursor/.agents-sync/managed-agents.txt"
+else
+    remove_path "$CURSOR_AGENT_MANIFEST" ".cursor/.agents-sync/managed-agents.txt"
+fi
+rm -f "$current_cursor_agents"
 $QUIET || echo ""
 
 # ── 4. Commands (directory-level symlinks) ────────────────────

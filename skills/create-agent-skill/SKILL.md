@@ -81,7 +81,9 @@ Keep SKILL.md concise. Link to reference files for details:
 Specialized agents spawned by commands or other agents to handle focused tasks.
 
 All sub-agents live in `~/.agents/sub-agents/` (source of truth).
-The sync script symlinks each `.md` file to `.cursor/agents/` and `.factory/droids/`.
+The sync script symlinks each `.md` file to `.factory/droids/` and copies a real file into `~/.cursor/agents/`.
+If Cursor does not surface a personal sub-agent in a given repo, copy the needed
+agent into that repo's `.cursor/agents/` directory as a project-local real file.
 
 ```bash
 mkdir -p ~/.agents/sub-agents

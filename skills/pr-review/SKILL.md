@@ -2,7 +2,8 @@
 name: pr-review
 description: |
   Review a GitHub pull request with local validation, targeted runtime validation
-  when warranted, PDLC-aligned audit trail capture, and multi-model consensus.
+  when warranted, PDLC-aligned audit trail capture, and capability-aware reviewer
+  consensus.
   Use when user shares a PR URL, says "review this PR", or asks to review a pull request.
   Handles enterprise SSO repos (uses gh CLI, not FetchUrl), reviews in an isolated
   git worktree, reconciles prior feedback, runs validation/tests and real-surface checks
@@ -15,7 +16,7 @@ description: |
 
 End-to-end pull request review: resolve PR context, review in an isolated worktree,
 validate locally, run targeted runtime validation when warranted, capture audit-trail
-and drift context, collect multi-model feedback, present findings, then optionally
+and drift context, collect reviewer feedback, present findings, then optionally
 post inline comments where they belong.
 
 ## Mode Detection
@@ -166,9 +167,14 @@ Build a concise review audit trail aligned with PDLC:
   - what was locally validated, runtime-tested, skipped, or blocked
 - capture model, token, and cost usage for reviewer runs and other agent-assisted analysis when the harness exposes it; if unavailable, mark it `not available` rather than guessing
 
-### 5. Multi-Model Review (Code Always, Spec/PRD Conditionally)
+### 5. Reviewer Fan-Out (Code Always, Spec/PRD Conditionally)
 
 Select the reviewer matrix before dispatching:
+
+Capability-aware routing:
+- If the platform supports distinct model assignment per reviewer, run the full reviewer family and treat agreement as true cross-model signal
+- If the platform does not support true per-reviewer model selection, the same reviewer family can still be useful as prompt-diverse or lens-diverse passes, but call that limitation out explicitly in the final summary and audit trail
+- If scope, latency, or cost makes full fan-out low-value, reduce the number of passes and choose the most useful review lenses for the PR
 
 **Code reviewers** run on every PR:
 - `code-reviewer-opus`
@@ -260,6 +266,7 @@ Also summarize the review audit trail:
 - traceability refs found, missing, or ambiguous
 - blueprint and requirements drift conclusions
 - validation/runtime coverage, skips, and blockers
+- whether the review used true cross-model diversity or only prompt-diverse passes
 - token/cost usage by reviewer or phase when available
 - a short note about any remaining evidence gaps the human reviewer should know
 
@@ -372,6 +379,7 @@ Severity levels:
 - **Prefer worktrees over checkout/stash.** Do not disturb the user's current branch/state unless they explicitly ask.
 - **Don't post a wall-of-text comment.** Use inline comments on specific lines where possible.
 - **Keep the review auditable.** The posted review should preserve the key traceability, drift, and usage/cost context because local artifacts are temporary.
+- **Be explicit about review diversity.** Distinguish true cross-model agreement from prompt-diverse agreement when the platform cannot assign different models per reviewer.
 - **Include test results** in the review body summary.
 - **Include reviewer confidence** in the review body summary.
 - **Note security findings prominently** -- hardcoded secrets, exposed tokens, etc.

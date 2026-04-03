@@ -45,7 +45,7 @@ Define product overview, business problem, personas, success metrics, and featur
 - Technical requirements and constraints
 - PRD documents per feature area
 
-**Quality gate:** Run PRD reviewer droids (opus, gpt, gemini) for contradictions and completeness.
+**Quality gate:** Run the PRD reviewer family for contradictions and completeness. Prefer multiple distinct models when the platform supports that.
 
 **Tools:** 8090 Refinery, Notion, Confluence, markdown PRDs in repo, Kiro specs
 
@@ -58,7 +58,7 @@ Translate requirements into technical blueprints/specs. This is the most importa
 - Feature blueprints: One per feature with detailed implementation specs
 - Each blueprint contains: schemas, queries, API contracts, algorithms, data models
 
-**Quality gate:** Run spec reviewer droids to catch cross-blueprint inconsistencies. Self-authored blueprints should get multi-model spec review as a second pair of eyes.
+**Quality gate:** Run the spec reviewer family to catch cross-blueprint inconsistencies. Self-authored blueprints should get multiple reviewer passes as a second pair of eyes, with true model diversity when supported.
 
 **Blueprint-first development:** Always consult blueprints before implementing. They should contain:
 - Exact schema field definitions (Zod, TypeScript interfaces, etc.)
@@ -93,6 +93,16 @@ Agents and automation handle the first pass. The person who used the agent revie
 ### Definition of Done
 A feature is not complete when the code is written. It is complete when the code AND the automated tests that demonstrate the specification is satisfied are delivered together.
 
+### Right-Size the Delivery Method
+
+| Work shape | Recommended approach |
+|---|---|
+| Single ticket, isolated scope | Single agent or human |
+| Small batch, loosely related | Sequential single-agent sessions |
+| 4+ interdependent WOs, shared files | Mission |
+
+All of the above can run locally on a developer machine or in the cloud. The same agentic flow applies in both environments. The goal is to move toward cloud agents (async, unattended, scalable) as the default -- assign a work order, it delivers. Today, the engineer or tech lead picks the approach.
+
 ### Single Work Item Workflow
 1. Read work item for scope and acceptance criteria
 2. Read referenced blueprints for technical detail
@@ -125,7 +135,7 @@ Unit tests mock infrastructure. Integration-level bugs only surface when running
 - Cold-start timeouts from services blocking on first connection
 - Stale database connections after infrastructure restarts
 
-Code reviewers (even multi-model) consistently miss these because they reason about code structure, not runtime resource contention.
+Code reviewers, even with strong diversity, consistently miss these because they reason about code structure, not runtime resource contention.
 
 ## Phase 6: Feedback Loop (Post-Deployment)
 
@@ -137,11 +147,16 @@ Collect user feedback from production, triage, and feed back into Phase 1 as new
 
 ## Key Practices
 
-### Multi-Model Reviews
-- Run parallel reviewer droids (opus, gpt, gemini) for code, spec, and PRD reviews
-- Different models catch different issues -- run at least 2 in parallel
+### Review Diversity
+- Run reviewer families for code, spec, and PRD reviews
+- Prefer true cross-model fan-out on platforms that support assigning distinct models per reviewer
+- When the tool does not support that, use prompt-diverse reviewer variants or focused review lenses and say clearly that the result is not true cross-model consensus
+- Different reviewers catch different issues -- run at least 2 useful passes when the cost and platform make that worthwhile
 - Shared instruction files in `~/.agents/sub-agents/shared/` keep reviewers consistent
 - Reviewers + smoke tests are complementary, not substitutes
+
+### Attention Routing
+Agents should triage their own output and surface specific points needing human judgment, rather than presenting a flat list of everything. The reviewer focuses on what matters, not everything. This applies to code reviews, spec reviews, and any agent output that a human needs to act on.
 
 ### Cost Control
 - Use builder subagents for independent implementation tasks
@@ -151,9 +166,9 @@ Collect user feedback from production, triage, and feed back into Phase 1 as new
 ### Post-Mission Review Workflow
 When a mission-driven implementation batch completes, use the `mission` skill's checklist as the concrete runbook. The lifecycle quality gate is:
 
-1. Run 3 code reviewers in parallel (opus, gpt, gemini)
-2. Run 3 spec reviewers for blueprint drift (if blueprints exist)
-3. Run 3 PRD reviewers for requirements coverage (if PRDs exist)
+1. Run the code reviewer family in parallel, preferring true cross-model diversity where supported
+2. Run the spec reviewer family for blueprint drift (if blueprints exist)
+3. Run the PRD reviewer family for requirements coverage (if requirements docs exist)
 4. Fix any critical findings with worker subagents
 5. Run smoke test against real services (Docker Compose, local dev, etc.)
 6. Fix any runtime issues found during smoke test
@@ -175,19 +190,28 @@ requirement → blueprint → work order → commit → PR → test result
 
 When using 8090, this chain is partially automated (WOs link to blueprints and requirements). For other tools, maintain explicit references in commit messages and PR descriptions.
 
+### Test-to-Spec Traceability
+
+Link automated tests back to specifications:
+
+- Include WO IDs in test describe blocks: `describe('WO-123: User profile CRUD', ...)`
+- Each acceptance criterion from the work order maps to at least one test case
+- For complex test setups, reference the blueprint section that defines the expected behavior
+- CI reporting should link test results back to work orders -- either via naming convention or a post-CI step that updates WO status based on outcomes
+
 ### Drift Detection
 
 Drift happens when implementation diverges from specs. Detect it at two levels:
 
-- **Blueprint drift** -- Run spec reviewer droids post-implementation to compare code against blueprints. Part of the post-mission review workflow.
-- **Requirements drift** -- Run PRD reviewer droids to verify implementation still satisfies original requirements. Catches scope creep and missed acceptance criteria.
+- **Blueprint drift** -- Run the spec reviewer family post-implementation to compare code against blueprints. Part of the post-mission review workflow.
+- **Requirements drift** -- Run the PRD reviewer family to verify implementation still satisfies original requirements. Catches scope creep and missed acceptance criteria.
 
 ### Audit Trail
 
 Record what happened at each phase for reproducibility:
 
 - **Decisions**: Why a particular approach was chosen (captured in blueprint rationale, PR descriptions)
-- **Reviews**: Which models ran, what they found, what was accepted/rejected
+- **Reviews**: Which reviewer variants or models ran, what they found, and what was accepted/rejected
 - **Approvals**: Human sign-off points (PR approvals, WO status transitions)
 - **Token usage & cost**: Track per-session and per-mission token consumption and model costs. Enables cost attribution per feature, phase, or work item.
 

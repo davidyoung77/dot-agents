@@ -148,22 +148,15 @@ After the mission completes, present this checklist to the orchestrator (the use
 Mission complete. Run these steps before marking items as done:
 
 ### 1. Code Review (parallel)
-Launch 3 reviewer droids against the mission's changes:
-- code-reviewer-opus
-- code-reviewer-gpt  
-- code-reviewer-gemini
+Launch the code reviewer family against the mission's changes.
+Prefer true cross-model diversity where the platform supports distinct models per reviewer.
+Otherwise, use the available reviewer variants as prompt-diverse passes and note the limitation.
 
 ### 2. Spec Review (parallel, if blueprints exist)
-Launch 3 spec reviewer droids to check for blueprint/spec drift:
-- spec-reviewer-opus
-- spec-reviewer-gpt
-- spec-reviewer-gemini
+Launch the spec reviewer family to check for blueprint/spec drift, using true model diversity when supported.
 
 ### 3. PRD/Requirements Review (parallel, if requirements docs exist)
-Launch 3 PRD reviewer droids for requirements coverage:
-- prd-reviewer-opus
-- prd-reviewer-gpt
-- prd-reviewer-gemini
+Launch the PRD reviewer family for requirements coverage, using true model diversity when supported.
 
 ### 4. Fix Findings
 Dispatch parallel workers to fix any critical/warning findings.
@@ -182,5 +175,5 @@ as completed in the PM tool.
 
 - The mission itself should NOT run reviewers. That's the orchestrator's job post-mission.
 - Reviewer agents/droids live in `~/.agents/sub-agents/` and are synced into the supported tools.
-- If some reviewer models timeout (common with gemini), results from 2/3 models is sufficient.
+- If some reviewer passes timeout or fail, results from the remaining useful passes are sufficient when there is still enough signal.
 - Smoke tests catch what reviewers can't: shared resource contention, connection pool exhaustion, cold-start hangs.

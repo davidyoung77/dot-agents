@@ -87,9 +87,11 @@ When given a Jira ticket ID (e.g., PROJ-123), follow this workflow:
 ### Phase 4b: Parallel Code Review
 After tests pass, dispatch parallel review droids to review the changes:
 
-1. Launch `code-reviewer-opus`, `code-reviewer-gpt`, and `code-reviewer-gemini` simultaneously via the Task tool
+1. Launch the code reviewer family in parallel
+   - Prefer `code-reviewer-opus`, `code-reviewer-gpt`, and `code-reviewer-gemini` when the platform supports distinct model assignment per reviewer
+   - Otherwise, use the available reviewer variants as prompt-diverse passes and note that limitation
 2. Provide all reviewers with: the Jira context, a summary of changes, and instructions to run `git diff` to see the exact diff
-3. Wait for results, but if one reviewer times out, proceed with the other two
+3. Wait for results, but if one reviewer pass times out, proceed with the remaining useful signal
 4. Address any **Must Fix** findings before proceeding
 5. Note **Observations** but do not act on them unless user requests
 
