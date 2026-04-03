@@ -17,6 +17,8 @@ set -euo pipefail
 AGENTS="$HOME/.agents"
 FACTORY="$HOME/.factory"
 CURSOR="$HOME/.cursor"
+FACTORY_SYNC_STATE_DIR="$FACTORY/.agents-sync"
+FACTORY_DROID_MANIFEST="$FACTORY_SYNC_STATE_DIR/managed-droids.txt"
 CURSOR_SYNC_STATE_DIR="$CURSOR/.agents-sync"
 CURSOR_AGENT_MANIFEST="$CURSOR_SYNC_STATE_DIR/managed-agents.txt"
 
@@ -99,6 +101,39 @@ ensure_symlink() {
     mkdir -p "$(dirname "$dst")"
     ln -s "$src" "$dst"
     log_sync "$label"
+}
+
+resolve_shared_subagent_source() {
+    local shared_ref="$1"
+    if [[ "$shared_ref" == "shared/"* ]]; then
+        printf '%s\n' "$AGENTS/sub-agents/shared/${shared_ref#shared/}"
+        return 0
+    fi
+    return 1
+}
+
+render_subagent_source() {
+    local src="$1" dst="$2"
+    local line shared_ref shared_file shared_line
+    : > "$dst"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ "$line" == "@@include "* ]]; then
+            shared_ref="${line#@@include }"
+            shared_file=$(resolve_shared_subagent_source "$shared_ref") || {
+                echo "Unsupported shared sub-agent reference: $shared_ref" >&2
+                return 1
+            }
+            if [[ ! -f "$shared_file" ]]; then
+                echo "Shared sub-agent file not found: $shared_file" >&2
+                return 1
+            fi
+            while IFS= read -r shared_line || [[ -n "$shared_line" ]]; do
+                printf '%s\n' "$shared_line" >> "$dst"
+            done < "$shared_file"
+        else
+            printf '%s\n' "$line" >> "$dst"
+        fi
+    done < "$src"
 }
 
 copy_file() {
@@ -210,18 +245,31 @@ prune_stale_symlinks "$FACTORY/skills" "$AGENTS/skills/" ".factory/skills/"
 prune_stale_symlinks "$CURSOR/skills-cursor" "$AGENTS/skills/" ".cursor/skills-cursor/"
 $QUIET || echo ""
 
-# ── 3. Sub-agents (Factory uses symlinks; Cursor uses real files) ─
+# ── 3. Sub-agents (rendered into self-contained real files) ─
 log_header "Sub-agents"
+current_factory_droids=$(mktemp "${TMPDIR:-/tmp}/factory-droids.XXXXXX")
 current_cursor_agents=$(mktemp "${TMPDIR:-/tmp}/cursor-agents.XXXXXX")
 for agent_file in "$AGENTS/sub-agents"/*.md; do
     [[ -f "$agent_file" ]] || continue
     name=$(basename "$agent_file")
-    ensure_symlink "$agent_file" "$FACTORY/droids/$name" ".factory/droids/$name"
-    copy_file "$agent_file" "$CURSOR/agents/$name" ".cursor/agents/$name"
+    rendered_agent=$(mktemp "${TMPDIR:-/tmp}/rendered-agent.XXXXXX")
+    render_subagent_source "$agent_file" "$rendered_agent"
+    copy_file "$rendered_agent" "$FACTORY/droids/$name" ".factory/droids/$name"
+    copy_file "$rendered_agent" "$CURSOR/agents/$name" ".cursor/agents/$name"
+    rm -f "$rendered_agent"
+    printf '%s\n' "$name" >> "$current_factory_droids"
     printf '%s\n' "$name" >> "$current_cursor_agents"
 done
 prune_stale_symlinks "$FACTORY/droids" "$AGENTS/sub-agents/" ".factory/droids/"
+prune_manifest_managed_files "$FACTORY_DROID_MANIFEST" "$FACTORY/droids" "$current_factory_droids" ".factory/droids/"
 prune_manifest_managed_files "$CURSOR_AGENT_MANIFEST" "$CURSOR/agents" "$current_cursor_agents" ".cursor/agents/"
+if [[ -s "$current_factory_droids" ]]; then
+    mkdir -p "$FACTORY_SYNC_STATE_DIR"
+    write_if_changed "$FACTORY_DROID_MANIFEST" "$(cat "$current_factory_droids")" \
+        ".factory/.agents-sync/managed-droids.txt"
+else
+    remove_path "$FACTORY_DROID_MANIFEST" ".factory/.agents-sync/managed-droids.txt"
+fi
 if [[ -s "$current_cursor_agents" ]]; then
     mkdir -p "$CURSOR_SYNC_STATE_DIR"
     write_if_changed "$CURSOR_AGENT_MANIFEST" "$(cat "$current_cursor_agents")" \
@@ -229,6 +277,7 @@ if [[ -s "$current_cursor_agents" ]]; then
 else
     remove_path "$CURSOR_AGENT_MANIFEST" ".cursor/.agents-sync/managed-agents.txt"
 fi
+rm -f "$current_factory_droids"
 rm -f "$current_cursor_agents"
 $QUIET || echo ""
 

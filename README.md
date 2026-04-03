@@ -50,15 +50,18 @@ reasoningEffort: max           # Factory reads, Cursor ignores
 tools: ["Read", "Grep", "Glob"] # Factory reads, Cursor ignores
 readonly: true                 # Cursor reads, Factory ignores
 ---
-Before doing anything else, read the shared instructions file at
-`~/.agents/sub-agents/shared/code-review.md` and follow them exactly.
+@@include shared/code-review.md
 ```
 
-**Skills** are symlinked into both tools. **Sub-agents** are symlinked into
-Factory and copied as real files into `~/.cursor/agents/` because Cursor
-subagent discovery is not reliable with symlinks. **Rules** are symlinked to
-Factory and generated as `.mdc` files for Cursor (which requires inline YAML
-frontmatter).
+Shared instruction files are an authoring convenience inside `~/.agents/`.
+Sync renders runtime sub-agents as self-contained files with shared instructions
+inlined, so the emitted Factory/Cursor agent files do not depend on local
+`shared/` paths at runtime.
+
+**Skills** are symlinked into both tools. **Sub-agents** are rendered into real
+files in both `~/.factory/droids/` and `~/.cursor/agents/`. **Rules** are
+symlinked to Factory and generated as `.mdc` files for Cursor (which requires
+inline YAML frontmatter).
 
 For Cursor specifically, treat `~/.cursor/agents/` as the documented global
 path, but not the only reliable runtime path. If Cursor does not surface a
@@ -107,9 +110,9 @@ No script edits needed — everything is auto-discovered.
 ## Design Decisions
 
 - **Source of truth over tool-local edits**: `~/.agents/` remains canonical.
-  Skills are symlinked to both tools, Factory droids are symlinked, and Cursor
-  user-scope sub-agents are copied as real files because symlink discovery is
-  unreliable there.
+  Skills are symlinked to both tools, while sub-agents are rendered into
+  self-contained real files for both tools so runtime behavior does not depend
+  on symlinked shared instruction files.
 - **Unified frontmatter**: One file serves both Factory (droids) and Cursor
   (agents). Each tool reads its own fields and ignores the rest.
 - **Memory at orchestrator level**: Sub-agents don't manage memory. The

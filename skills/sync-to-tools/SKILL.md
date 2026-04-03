@@ -32,7 +32,7 @@ All items are auto-discovered — no hardcoded lists in the script.
 |--------|---------|--------|
 | `~/.agents/mcp.json` | `.factory/mcp.json`, `.cursor/mcp.json` | symlink |
 | `~/.agents/skills/*/` | `.factory/skills/<name>`, `.cursor/skills-cursor/<name>` | symlink |
-| `~/.agents/sub-agents/*.md` | `.factory/droids/`, `~/.cursor/agents/` | symlink to Factory, copied file to Cursor user scope |
+| `~/.agents/sub-agents/*.md` | `.factory/droids/`, `~/.cursor/agents/` | rendered self-contained file in both tools |
 | `~/.agents/commands/` | `.factory/commands/`, `.cursor/commands/` | symlink |
 | `~/.agents/AGENTS.md` | `.factory/rules/coding-standards.md` | symlink |
 | `~/.agents/AGENTS.md` | `.cursor/rules/personal-coding-standards.mdc` | generated .mdc |
@@ -49,6 +49,10 @@ For Cursor sub-agents, `~/.cursor/agents/` is kept in sync as the documented
 global location. If Cursor does not surface a personal sub-agent in a specific
 repo, copy the needed agent into that repo's `.cursor/agents/` directory as a
 project-local real file.
+
+If a sub-agent contains `@@include shared/<file>.md`, the sync script inlines
+that shared content into the emitted runtime files so Factory/Cursor do not
+depend on shared-path lookups at runtime.
 
 ## Script Location
 

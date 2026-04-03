@@ -81,7 +81,7 @@ Keep SKILL.md concise. Link to reference files for details:
 Specialized agents spawned by commands or other agents to handle focused tasks.
 
 All sub-agents live in `~/.agents/sub-agents/` (source of truth).
-The sync script symlinks each `.md` file to `.factory/droids/` and copies a real file into `~/.cursor/agents/`.
+The sync script renders each sub-agent into a self-contained runtime file in `~/.factory/droids/` and `~/.cursor/agents/`.
 If Cursor does not surface a personal sub-agent in a given repo, copy the needed
 agent into that repo's `.cursor/agents/` directory as a project-local real file.
 
@@ -104,7 +104,7 @@ You are a specialized agent. [system prompt instructions here]
 ```
 
 Sub-agents are flat `.md` files — no `SKILL.md` nesting.
-Use a `shared/` subdirectory for reference files multiple sub-agents share.
+Use a `shared/` subdirectory for authoring-only reference files multiple sub-agents share, and reference them from the source agent with `@@include shared/<file>.md`.
 
 ### Commands
 

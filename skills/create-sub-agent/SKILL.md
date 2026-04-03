@@ -40,7 +40,8 @@ Only include `reasoningEffort` and `tools` if values were provided. Omit them fo
    - Write tool-neutral instructions (no Factory or Cursor framing)
    - Focus on the task, checklist, and expected output format
    - Only create a shared file when multiple sub-agents will reference it (e.g. the 3-model reviewer pattern)
-   - In that case, the sub-agent file should point to the shared file:
+   - Treat shared files as authoring-only source. Sync renders runtime agent files with the shared content inlined.
+   - In that case, the sub-agent file should reference the shared file with an explicit include directive:
 
 ```markdown
 ---
@@ -51,7 +52,7 @@ reasoningEffort: <effort>
 tools: <tools-array>
 readonly: <true|false>
 ---
-Before doing anything else, read the shared instructions file at `~/.agents/sub-agents/shared/<instruction-file>.md` and follow them exactly.
+@@include shared/<instruction-file>.md
 ```
 
 4. **For reviewer families or model variants** (diversity-of-opinion pattern):
@@ -60,7 +61,7 @@ Before doing anything else, read the shared instructions file at `~/.agents/sub-
    - Use names like `<role>-opus.md`, `<role>-gpt.md`, `<role>-gemini.md` when true per-agent model selection exists
    - On tools that do not support true model selection, keep the family only if the prompt/lens diversity is still worth the complexity
 
-5. **Run sync** — execute `~/.agents/bin/sync-to-tools` to create a Factory symlink in `.factory/droids/` and a real copied file in `~/.cursor/agents/`.
+5. **Run sync** — execute `~/.agents/bin/sync-to-tools` to render self-contained runtime agent files into `~/.factory/droids/` and `~/.cursor/agents/`.
 
    If Cursor still does not surface the agent in a specific project, copy the same file into that project's `.cursor/agents/` directory as a real file.
 
