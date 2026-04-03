@@ -1,10 +1,12 @@
 ---
 name: pr-review
 description: |
-  Review a GitHub pull request with full local validation and multi-model consensus.
+  Review a GitHub pull request with local validation, targeted runtime validation
+  when warranted, PDLC-aligned audit trail capture, and multi-model consensus.
   Use when user shares a PR URL, says "review this PR", or asks to review a pull request.
   Handles enterprise SSO repos (uses gh CLI, not FetchUrl), reviews in an isolated
-  git worktree, reconciles prior feedback, runs validation/tests, dispatches code
+  git worktree, reconciles prior feedback, runs validation/tests and real-surface checks
+  when warranted, dispatches code
   reviewers on every PR plus spec/PRD reviewers when warranted, consolidates findings,
   and posts inline review comments on the correct diff lines.
 ---
@@ -12,7 +14,8 @@ description: |
 # PR Review
 
 End-to-end pull request review: resolve PR context, review in an isolated worktree,
-validate locally, collect multi-model feedback, present findings, then optionally
+validate locally, run targeted runtime validation when warranted, capture audit-trail
+and drift context, collect multi-model feedback, present findings, then optionally
 post inline comments where they belong.
 
 ## Mode Detection
@@ -20,8 +23,8 @@ post inline comments where they belong.
 | User says | Action |
 |---|---|
 | "review this PR", "review PR #N", shares a PR URL | Full review flow |
-| "just run the tests on this PR" | Skip droid dispatch and posting; run local validation only |
-| "post the review" | Post previously approved findings from a saved report/payload when available |
+| "just run the tests on this PR" | Skip droid dispatch and posting; run local validation only unless the user explicitly asks for runtime validation |
+| "post the review" | Post previously approved findings from a temporary saved report/payload when available |
 
 ## Flow
 
@@ -43,20 +46,25 @@ gh pr diff <number>
 4. Resolve artifact locations:
    - Worktree path: `~/git/worktrees/<REPO_NAME>/pr-<NUMBER>`
    - Report directory: first look for agent output/work artifact guidance in `AGENTS.md`, `.agents/AGENTS.md`, `.factory/AGENTS.md`, or `.agent/AGENTS.md`
-   - If no repo-specific artifact directory is defined, fall back to `.agents/work/pr-reviews/`
-5. If using the fallback `.agents/work/` path, ensure the whole `.agents/work/` tree is ignored before writing there.
+   - If the repo defines only a base artifact/work directory, nest PR review artifacts under `pr-reviews/pr-<NUMBER>/`
+   - If no repo-specific artifact directory is defined, fall back to `<REPO_ROOT>/.agents/work/pr-reviews/pr-<NUMBER>/`
+   - Only if there is no natural project-local home, fall back to `~/.agents/work/pr-reviews/<owner>/<repo>/pr-<NUMBER>/`
+5. Treat everything in `<REPORT_DIR>` as temporary recovery artifacts, not durable records.
+   - The PR itself is the source of truth once the review is posted successfully
+   - These files exist only to support approval, retry, or crash recovery
+6. If using a `.agents/work/` path, ensure the whole `.agents/work/` tree is ignored before writing there.
    - Prefer `.git/info/exclude` for local-only artifacts
    - Only update tracked `.gitignore` if the repo explicitly wants a shared ignore rule
-6. If the user invoked "post the review" directly, first look in `<REPORT_DIR>` for the latest saved review report and saved payload for this PR.
+7. If the user invoked "post the review" directly, first look in `<REPORT_DIR>` for the latest saved review report and saved payload for this PR.
    - If found, treat them as the source of truth, confirm with the user, and jump to Step 9
    - If not found, tell the user no saved review exists and ask whether to run the full review flow
-7. Fetch and retain:
+8. Fetch and retain:
    - PR metadata
    - full diff
    - changed file list
    - diff stats
    - linked tickets if present
-8. Print a short summary for the user:
+9. Print a short summary for the user:
    - PR title and number
    - base <- head
    - additions/deletions and changed-file count
@@ -116,6 +124,48 @@ If tests require auth/credentials and fail at auth step:
 
 Only compare against the base branch when needed to disambiguate whether a failure is pre-existing.
 
+### 4b. Runtime / Real-Surface Validation (When Warranted)
+
+Decide whether independent runtime validation is warranted. It usually is when the PR changes:
+- user-visible UI flows
+- API endpoints, webhooks, auth, session, or permissions
+- integration boundaries, runtime configuration, migrations, or other runtime-sensitive behavior
+- critical paths the user explicitly wants smoke-tested
+
+When warranted:
+- Prefer the least-cost real validation path available:
+  - existing smoke or e2e command if the repo already provides one
+  - browser-based validation for changed UI flows
+  - real API requests for changed endpoints or auth flows
+  - local dev / Docker Compose / documented non-prod service checks for integration-sensitive behavior
+- Read `AGENTS.md`, `.agents/AGENTS.md`, README, and project commands to find the correct runtime path before inventing one
+- Before launching services, using browser automation, or making credentialed requests, present a short proposed runtime validation plan and ask for approval unless the user already explicitly asked for it
+- Capture a runtime validation summary:
+  - what was tested
+  - what passed, failed, or was skipped
+  - screenshots or evidence paths if produced
+  - API endpoints exercised and status codes
+  - blockers and follow-up manual verification needed
+
+If runtime validation was warranted but blocked, include that gap clearly in the final summary and in reviewer prompts.
+
+### 4c. Audit Trail, Traceability, and Drift
+
+Build a concise review audit trail aligned with PDLC:
+- map whatever traceability exists back to:
+  - `requirement/work item/blueprint/spec -> commit -> PR -> validation result`
+- use the PR body, linked tickets, branch naming, commits, and changed docs to recover the chain when possible
+- note when the traceability chain is weak or missing rather than silently accepting it
+- record drift conclusions:
+  - blueprint drift from spec reviewers
+  - requirements drift from PRD reviewers
+  - whether any drift appears intentional and documented vs accidental or unexplained
+- record review governance details:
+  - reviewer matrix used
+  - prior unresolved feedback carried forward
+  - what was locally validated, runtime-tested, skipped, or blocked
+- capture model, token, and cost usage for reviewer runs and other agent-assisted analysis when the harness exposes it; if unavailable, mark it `not available` rather than guessing
+
 ### 5. Multi-Model Review (Code Always, Spec/PRD Conditionally)
 
 Select the reviewer matrix before dispatching:
@@ -156,6 +206,8 @@ Each gets the same core context:
 - full changed-file list
 - static validation summary
 - test summary
+- runtime validation summary, if any
+- audit-trail summary, including traceability refs found and current drift status
 - prior unresolved feedback, if any
 - the diff inline for small PRs, or the saved diff file path for large PRs
 
@@ -170,6 +222,13 @@ When constructing the prompt for each reviewer, instruct them to:
 - Include exact replacement-style fix suggestions only when the fix is small, local, and copy-pasteable
 - Confirm prior unresolved comments as resolved notes when the current code actually addresses them, rather than reflexively reopening them
 - Return structured findings with severity, file, line, explanation, and optional suggested fix
+- Return a reviewer confidence percentage: integer `0-100`
+- Calibrate the percentage roughly as:
+  - `90-100` -> very strong evidence and coverage, low uncertainty
+  - `70-89` -> good signal, but with some gaps or assumptions
+  - `40-69` -> partial coverage or material blockers; findings may still be useful
+  - `0-39` -> weak signal; review is tentative and incomplete
+- Include a one- or two-sentence confidence rationale tied to the actual evidence reviewed, blockers encountered, and coverage achieved
 - Never make edits
 
 Handle timeouts gracefully -- if a droid times out, note it and continue with results from those that completed.
@@ -191,31 +250,53 @@ Then consolidate:
 - Group by severity: Critical > High > Medium > Low
 - Include positive findings too (good patterns, nice changes)
 
-### 7. Write Durable Review Artifacts
+Also summarize reviewer-level confidence:
+- Record each reviewer's confidence percentage and rationale
+- Highlight confidence disagreements across reviewers
+- If helpful, summarize the spread (for example min/max or rough clustering), but keep the raw per-reviewer percentages visible
+- If useful, add a short synthesized note about overall review coverage, but do not replace the per-reviewer confidence matrix with a single scalar score
+
+Also summarize the review audit trail:
+- traceability refs found, missing, or ambiguous
+- blueprint and requirements drift conclusions
+- validation/runtime coverage, skips, and blockers
+- token/cost usage by reviewer or phase when available
+- a short note about any remaining evidence gaps the human reviewer should know
+
+### 7. Write Temporary Recovery Artifacts
 
 Before asking to post, write a markdown review report to `<REPORT_DIR>/pr-<NUMBER>-review.md`.
 
 Include:
 - PR metadata and URL
-- validation and test summaries
+- audit-trail summary:
+  - traceability refs
+  - drift conclusions
+  - token/cost usage when available
+- validation, test, and runtime validation summaries
 - prior-feedback summary
 - reviewer matrix used, including any optional reviewer families that were skipped
+- per-reviewer confidence percentages and rationales
 - consolidated findings grouped by severity
 - which droids agreed on each finding
 - the proposed review action: `APPROVE`, `REQUEST_CHANGES`, or `COMMENT`
 
 Save intermediate artifacts when useful:
+- runtime validation evidence paths or notes, if produced
 - raw reviewer outputs
 - saved diff file for large PRs
 
-If the user later says "post the review", reuse the saved review report and payload when available instead of recomputing everything.
+If the user later says "post the review", reuse the temporary saved review report and payload when available instead of recomputing everything.
 
 ### 8. Present to User for Approval
 
 Show the consolidated review BEFORE posting. Include:
+- Audit-trail summary with traceability refs, drift status, and token/cost usage when available
 - Test results summary table
+- Runtime validation summary when it was run or when a warranted check was blocked
 - Prior-feedback summary if relevant
 - Reviewer matrix used, including any conditional reviewer families that were skipped
+- Per-reviewer confidence percentages and rationales
 - Findings grouped by severity with file:line references
 - Which droids agreed on each finding
 - Proposed review action (APPROVE, REQUEST_CHANGES, COMMENT)
@@ -238,7 +319,7 @@ The review JSON structure:
 {
   "commit_id": "<head SHA>",
   "event": "REQUEST_CHANGES|APPROVE|COMMENT",
-  "body": "Summary with test results table",
+  "body": "Summary with audit trail, validation/test/runtime/drift results, reviewer confidence summary, and token usage when available",
   "comments": [
     {
       "path": "relative/file/path.ts",
@@ -280,19 +361,24 @@ Severity levels:
 1. Remove the detached worktree only after:
    - the review was posted successfully, or
    - the user explicitly decides to stop without further retries
-2. Keep the markdown report and saved payload/artifacts in the report directory.
-3. If posting fails, keep the saved payload on disk, keep the worktree available for retry/debugging, and show the retry command.
+2. If the review posts successfully, delete the temporary report, payload, raw reviewer outputs, and saved diff from `<REPORT_DIR>` by default.
+   - Remove the now-empty PR-specific report directory too, when practical
+   - Keep artifacts only if the user explicitly asks to retain them or if something about the post result is incomplete
+3. If posting fails, approval is deferred, or some comments could not be posted, keep the saved payload/artifacts on disk, keep the worktree available for retry/debugging, and show the retry command.
 
 ## Important Notes
 
 - **Never post without user approval.** Always present findings first.
 - **Prefer worktrees over checkout/stash.** Do not disturb the user's current branch/state unless they explicitly ask.
 - **Don't post a wall-of-text comment.** Use inline comments on specific lines where possible.
+- **Keep the review auditable.** The posted review should preserve the key traceability, drift, and usage/cost context because local artifacts are temporary.
 - **Include test results** in the review body summary.
+- **Include reviewer confidence** in the review body summary.
 - **Note security findings prominently** -- hardcoded secrets, exposed tokens, etc.
 - **Positive feedback matters** -- call out good patterns, not just problems.
 - **Handle auth gracefully** -- if tests can't run due to expired tokens, say so clearly and check for project-specific refresh mechanisms.
 - **Use saved reports for follow-up.** If the user later says "post the review", reuse the latest approved findings/report when possible instead of recomputing everything.
+- **Delete temp artifacts after success.** Local PR review files are for recovery, not archival, once the review is safely in the PR.
 
 ## Error Handling
 

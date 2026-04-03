@@ -201,10 +201,10 @@ Then:
 
 4. **Instruct user on committing:**
    
-   For merge commits (backports, etc.), do NOT use `/commit`. Instead use `git commit` directly since:
+  For merge commits (backports, etc.), do NOT use the `commit` skill. Instead use `git commit` directly since:
    - All changes are already staged from the merge
    - Git knows we're in a merge state and will create proper merge commit with two parents
-   - Pre-commit hooks from `/commit` may be problematic for large merges with files from different authors
+  - The `commit` skill is optimized for normal staged-change commits and may be problematic for large merges with files from different authors
    
    **Recommended commit message format for merges with conflicts:**
    ```
@@ -219,7 +219,7 @@ Then:
    
    > "Conflicts resolved. Ready to commit.
    > 
-   > For merge commits, use `git commit` directly (not `/commit`):
+   > For merge commits, use `git commit` directly (not the `commit` skill):
    > ```
    > git commit -m \"chore(backport): merge <source> into <target>
    > 

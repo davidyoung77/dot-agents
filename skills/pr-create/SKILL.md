@@ -1,0 +1,184 @@
+---
+name: pr-create
+description: |
+  Create a pull request with author-side validation, evidence capture, and pre-filled
+  template content from branch and Jira context. Use when the user says "create PR",
+  "open a PR", or is ready to publish the current branch.
+disable-model-invocation: true
+---
+
+# PR Create
+
+Create a pull request for the current branch.
+
+This is the author-side readiness workflow:
+- verify the branch is ready to publish
+- run the validation that should happen before opening the PR
+- capture evidence and remaining manual follow-up clearly
+- capture a PDLC-aligned audit trail in the PR body
+- show the PR body before creating anything
+
+Independent re-validation belongs to the `pr-review` skill.
+
+## 1. Resolve Base Branch and Gather Context
+
+1. Determine the base branch:
+- If `$ARGUMENTS` contains a branch name, use it.
+- Otherwise resolve the remote default branch with:
+  ```bash
+  git symbolic-ref --short refs/remotes/origin/HEAD | sed 's@^origin/@@'
+  ```
+- If that fails, ask the user.
+
+2. Once the base branch is known, run these commands in parallel:
+- `git status`
+- `git log origin/<base-branch>..HEAD --oneline`
+- `git diff origin/<base-branch> --stat`
+- `git rev-parse --abbrev-ref HEAD`
+- `git rev-parse --abbrev-ref --symbolic-full-name @{u}` (if the branch tracks a remote)
+
+3. If there are uncommitted changes, stop and tell the user to use the `commit` skill first.
+
+## 2. Extract Context
+
+- Parse the Jira ID from the branch name (for example `feature/PROJ-123/description` -> `PROJ-123`)
+- If a Jira ID is found, fetch the issue details for context (summary, acceptance criteria)
+- If no Jira ID is found, ask the user for the missing context
+
+## 3. Validation Readiness
+
+This skill owns author-side validation before the PR is opened.
+
+1. Discover local validation commands from the repo:
+- `package.json` scripts such as `lint`, `typecheck`, `build`, `test`, `test:e2e`
+- `Makefile` targets
+- `pyproject.toml`, `go test`, or other project-native test runners
+
+2. Run the lightweight local checks that are expected before opening the PR:
+- lint
+- typecheck
+- build
+- automated tests
+
+3. Decide whether runtime validation is warranted. It usually is when the branch changes:
+- user-visible UI flows
+- API endpoints, webhooks, auth, session, or permissions
+- integration boundaries, runtime configuration, or stateful workflows
+- other critical paths where unit tests are not enough
+
+4. If runtime validation is warranted and would require launching services, using browser automation, or making credentialed API calls, show a short proposed validation plan and ask for approval before running it.
+
+5. If approved, run the least-cost real validation path available:
+- existing smoke or e2e command if the repo already has one
+- targeted browser validation for changed UI flows
+- real API requests for changed endpoints or auth flows
+- local dev / Docker Compose / documented non-prod service checks for integration-sensitive changes
+
+6. Capture validation evidence clearly:
+- commands run
+- what passed, failed, or was skipped
+- screenshots or evidence paths
+- API endpoints exercised and status codes
+- blockers and any remaining manual verification the reviewer should do
+
+If runtime validation was warranted but not run, say so explicitly and carry that gap into the PR body.
+
+## 3b. Audit Trail and Traceability
+
+Build a concise author-side audit trail aligned with PDLC traceability:
+- `requirement/work item/blueprint/spec -> commit -> PR -> validation result`
+- capture explicit references when available:
+  - Jira or work item IDs
+  - blueprint/spec/requirements docs
+  - commits included in the PR
+  - validation commands, evidence, and blockers
+- record drift status:
+  - no known requirements/blueprint drift
+  - intentional drift with explanation and follow-up
+  - suspected drift that `pr-review` should verify
+- record what still needs reviewer attention or manual verification
+- capture model, token, and cost usage for agent sessions used to prepare the PR when the tool exposes it; if unavailable, say `not available` rather than estimating
+
+This audit trail should live in the PR body, not only in temporary local notes.
+
+## 4. Prepare PR Content
+
+Read `.github/PULL_REQUEST_TEMPLATE.md` and fill it out.
+
+### Description
+- Summarize what changed based on commits and diff
+- Reference the Jira story context if available
+
+### Jira Link
+- Format: `https://<instance>.atlassian.net/browse/<TICKET-ID>` if a Jira ID is found
+- Otherwise omit it or mark it `N/A`
+
+### Author Checklist
+- Check items only when they were actually verified in this run
+- Do not infer or auto-complete testing items that were not executed
+
+### Test Steps
+- Describe what was already validated in this run
+- List any API endpoints, UI flows, or smoke paths the reviewer should still verify manually
+- If validation was blocked, state the blocker directly
+
+### Screenshots / Evidence
+- If screenshots or other validation artifacts were captured, list them for attachment or reference
+- If no artifacts were captured, say so plainly
+
+### Audit Trail / Traceability
+- Include the work-item, Jira, blueprint, or spec references that explain why the change exists
+- Summarize commits in scope when helpful
+- Summarize validation evidence, skipped checks, and blockers
+- Note the current drift assessment (`none known`, `intentional`, or `suspected`)
+- Include token/cost usage when available from the tool or harness; otherwise mark it `not available`
+
+If the template has no natural place for this information, add a short `Audit Trail` section rather than dropping it.
+
+If the repo has no PR template, use a sensible default body with:
+- description
+- validation summary
+- audit trail
+- test steps
+- screenshots / evidence
+- checklist
+
+## 5. Show PR Preview
+
+Display the complete PR body in a code block and ask:
+
+`Here's the proposed PR. Would you like me to create it, or would you like to make changes?`
+
+**STOP and wait for user approval.**
+
+## 6. Create the PR
+
+Once approved:
+
+1. If the branch has no upstream, ask before pushing it with:
+```bash
+git push -u origin HEAD
+```
+
+2. Create the PR:
+```bash
+gh pr create --draft --base <base-branch> --title "<title>" --body "<approved body>"
+```
+
+Use the first commit message or the user's preferred title as the PR title. Keep it consistent with the branch's conventional-commit style when possible.
+
+## 7. Report Success
+
+- Display the PR URL
+- Summarize the validation evidence and audit-trail details included in the PR body
+- Ask: `Would you like me to add a comment to the Jira ticket with the PR link?`
+
+## Important Notes
+
+- Never create the PR before the user sees and approves the PR content
+- If `gh` CLI is not authenticated, provide instructions: `gh auth login`
+- If there are uncommitted changes, stop and direct the user to the `commit` skill first
+- Use the repo's actual default branch unless the user overrides it
+- Validation should be honest: if something was not run, leave it unchecked and say so
+- When runtime validation is blocked, record the blocker rather than pretending the branch is fully verified
+- Keep the PR body traceable: include drift status and token/cost usage when available instead of burying that context in chat history

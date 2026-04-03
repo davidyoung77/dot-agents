@@ -43,6 +43,16 @@ log_sync() { $QUIET || echo -e "  ${GREEN}✓${NC} $1"; ((changed++)) || true; }
 log_skip() { $QUIET || echo -e "  ${DIM}– $1${NC}"; ((skipped++)) || true; }
 log_warn() { echo -e "  ${YELLOW}⚠${NC} $1"; ((warnings++)) || true; }
 
+remove_path() {
+    local path="$1" label="$2"
+    if $DRY_RUN; then
+        log_sync "$label (dry-run, would remove stale artifact)"
+        return
+    fi
+    rm -f "$path"
+    log_sync "$label (removed stale artifact)"
+}
+
 ensure_symlink() {
     local src="$1" dst="$2" label="$3"
     if [[ -L "$dst" ]]; then
@@ -89,6 +99,22 @@ ensure_symlink() {
     log_sync "$label"
 }
 
+prune_stale_symlinks() {
+    local dst_dir="$1" src_prefix="$2" label_prefix="$3"
+    local entry target name
+    [[ -d "$dst_dir" ]] || return
+    shopt -s nullglob
+    for entry in "$dst_dir"/*; do
+        [[ -L "$entry" ]] || continue
+        target=$(readlink "$entry")
+        [[ "$target" == "$src_prefix"* ]] || continue
+        [[ -e "$target" ]] && continue
+        name=$(basename "$entry")
+        remove_path "$entry" "$label_prefix$name"
+    done
+    shopt -u nullglob
+}
+
 write_if_changed() {
     local dst="$1" content="$2" label="$3"
     local tmp
@@ -107,6 +133,22 @@ write_if_changed() {
     mkdir -p "$(dirname "$dst")"
     mv "$tmp" "$dst"
     log_sync "$label"
+}
+
+prune_generated_cursor_rule_files() {
+    local dst_dir="$1" entry name
+    [[ -d "$dst_dir" ]] || return
+    shopt -s nullglob
+    for entry in "$dst_dir"/*.mdc; do
+        [[ -f "$entry" ]] || continue
+        name=$(basename "$entry" .mdc)
+        [[ "$name" == "personal-coding-standards" ]] && continue
+        [[ -f "$AGENTS/rules/$name.md" ]] && continue
+        if grep -q "from ~/.agents/rules/" "$entry" 2>/dev/null; then
+            remove_path "$entry" ".cursor/rules/$name.mdc"
+        fi
+    done
+    shopt -u nullglob
 }
 
 log_header "Syncing ~/.agents/ → tools"
@@ -129,6 +171,8 @@ for skill_dir in "$AGENTS/skills"/*/; do
     ensure_symlink "$skill_dir" "$FACTORY/skills/$name" ".factory/skills/$name"
     ensure_symlink "$skill_dir" "$CURSOR/skills-cursor/$name" ".cursor/skills-cursor/$name"
 done
+prune_stale_symlinks "$FACTORY/skills" "$AGENTS/skills/" ".factory/skills/"
+prune_stale_symlinks "$CURSOR/skills-cursor" "$AGENTS/skills/" ".cursor/skills-cursor/"
 $QUIET || echo ""
 
 # ── 3. Sub-agents (file-level — shared/ dir uses absolute paths) ─
@@ -139,6 +183,8 @@ for agent_file in "$AGENTS/sub-agents"/*.md; do
     ensure_symlink "$agent_file" "$FACTORY/droids/$name" ".factory/droids/$name"
     ensure_symlink "$agent_file" "$CURSOR/agents/$name"  ".cursor/agents/$name"
 done
+prune_stale_symlinks "$FACTORY/droids" "$AGENTS/sub-agents/" ".factory/droids/"
+prune_stale_symlinks "$CURSOR/agents" "$AGENTS/sub-agents/" ".cursor/agents/"
 $QUIET || echo ""
 
 # ── 4. Commands (directory-level symlinks) ────────────────────
@@ -187,6 +233,8 @@ $rule_body"
     done
     $QUIET || echo ""
 fi
+prune_stale_symlinks "$FACTORY/rules" "$AGENTS/rules/" ".factory/rules/"
+prune_generated_cursor_rule_files "$CURSOR/rules"
 
 # ── Summary ──────────────────────────────────────────────────
 if $QUIET; then

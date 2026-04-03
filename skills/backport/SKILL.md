@@ -1,9 +1,9 @@
 ---
 name: backport
 description: |
-  Backport a release/hotfix branch into a base branch (default: develop). Creates a backport branch, 
-  handles merge, and guides through conflict resolution using resolve-conflicts skill. Uses /commit 
-  and /pr skills for final steps.
+  Backport a release/hotfix branch into a base branch (default: develop). Creates a backport branch,
+  handles merge, and guides through conflict resolution using resolve-conflicts skill. Uses the `commit`
+  and `pr-create` skills for final steps.
 ---
 
 # Backport Workflow
@@ -154,7 +154,7 @@ after the backport branch was already created and a PR is open.
 3. **STOP AND PROMPT:**
    > "Changes are ready. Please review with `git diff --staged` if needed.
    > 
-   > For merge commits, use `git commit` directly (not `/commit`) to avoid pre-commit hook issues with large merges."
+   > For merge commits, use `git commit` directly (not the `commit` skill) to avoid pre-commit hook issues with large merges."
    
    **Recommended commit message format:**
    ```
@@ -243,8 +243,8 @@ after the backport branch was already created and a PR is open.
 ## Key Principles
 
 - **Always confirm** base branch with user before proceeding
-- **Never auto-commit** - always defer to `/commit` skill
-- **Never auto-create PR** - always defer to `/pr` skill
+- **Never auto-commit** - always defer to the `commit` skill when a normal commit workflow is appropriate
+- **Never auto-create PR** - always defer to the `pr-create` skill
 - **Pause for conflicts** - guide user to resolve-conflicts skill
 - **Clear communication** at each phase about what's happening and what's next
 
@@ -258,4 +258,4 @@ Response flow:
 3. "Use git worktree? (y/n)" → user: "n"
 4. "Branch name will be: `backport/dy/release-1.2.3-to-develop-01212026`. Proceed? (y/n)" → user: "yes"
 5. Creates branch, attempts merge, handles conflicts or proceeds
-6. Guides through /commit and /pr
+6. Guides through `commit` and `pr-create`

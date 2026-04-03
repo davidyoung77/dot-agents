@@ -3,7 +3,7 @@ name: jira-implement
 description: |
   Jira story/bug/task implementation workflow. Use when user mentions a Jira ticket ID (e.g., PROJ-123) 
   and wants to implement it. Fetches issue details, creates implementation plan, waits for 
-  approval, then implements with proper git workflow. Uses /commit and /pr skills for final steps.
+  approval, then implements with proper git workflow. Uses the `commit` and `pr-create` skills for final steps.
 ---
 
 # Jira Story Implementation
@@ -96,18 +96,18 @@ After tests pass, dispatch parallel review droids to review the changes:
 ### Phase 5: Commit Preparation
 1. Show the user what changed with `git diff`
 2. **STOP AND PROMPT:**
-   > "Ready to commit. Run `/commit` when you're satisfied with the changes."
+   > "Ready to commit. Use the `commit` skill when you're satisfied with the changes."
 
-3. **Wait for user to run `/commit`** - do NOT proceed until they confirm commit is done.
+3. **Wait for user to use the `commit` skill** - do NOT proceed until they confirm commit is done.
 
 ### Phase 6: PR Creation
-**IMPORTANT: Do NOT create PR directly with `gh pr create`. Always defer to the `/pr` skill.**
+**IMPORTANT: Do NOT create PR directly with `gh pr create`. Always defer to the `pr-create` skill.**
 
 1. **STOP AND PROMPT:**
-   > "Commit complete. Ready to create PR. Run `/pr` when ready."
+   > "Commit complete. Ready to create PR. Use the `pr-create` skill when ready."
 
-2. **Wait for user to run `/pr`**
-3. If user says "proceed" or "create PR", remind them to use `/pr` - do not bypass this step
+2. **Wait for user to use the `pr-create` skill**
+3. If user says "proceed" or "create PR", remind them to use `pr-create` - do not bypass this step
 
 ### Phase 7: Jira Update (Optional)
 1. After PR is created, propose a Jira comment like:
@@ -125,7 +125,7 @@ After tests pass, dispatch parallel review droids to review the changes:
 - **Validate before planning** - Stories can become stale; verify current state matches assumptions
 - **Always wait for approval** before implementing (after Phase 2)
 - **Always wait for approval** before verification steps (Phase 4)
-- **Never auto-commit or auto-push** - user controls git operations via `/commit` and `/pr` skills
+- **Never auto-commit or auto-push** - user controls git operations via the `commit` and `pr-create` skills
 - **Follow existing code patterns** - check codebase conventions first
 - **Run all tests** before declaring implementation complete
 - **Take screenshots** as evidence for PR

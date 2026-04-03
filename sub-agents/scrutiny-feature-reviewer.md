@@ -64,6 +64,8 @@ jq -s --arg sid "$WORKER_SESSION_ID" '
 ```bash
 if [ -f ".agents/skills/<skillName>/SKILL.md" ]; then
   cat ".agents/skills/<skillName>/SKILL.md"
+elif [ -f "$HOME/.agents/skills/<skillName>/SKILL.md" ]; then
+  cat "$HOME/.agents/skills/<skillName>/SKILL.md"
 else
   cat ".factory/skills/<skillName>/SKILL.md"
 fi
