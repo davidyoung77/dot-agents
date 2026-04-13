@@ -1,6 +1,6 @@
 ---
 name: code-reviewer-opus
-description: Post-builder code reviewer with auto-fix capability (Opus 4.6)
+description: Code reviewer for PR review passes (Opus 4.6)
 model: claude-opus-4-6
 reasoningEffort: max
 tools: ["Read", "Grep", "Glob", "LS"]

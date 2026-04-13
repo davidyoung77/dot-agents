@@ -1,6 +1,6 @@
 ---
 name: code-reviewer-gpt
-description: Post-builder code reviewer with auto-fix capability (GPT 5.4)
+description: Code reviewer for PR review passes (GPT 5.4)
 model: gpt-5.4
 reasoningEffort: xhigh
 tools: ["Read", "Grep", "Glob", "LS"]
