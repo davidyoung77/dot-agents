@@ -22,14 +22,14 @@ post inline comments where they belong.
 | User says | Action |
 |---|---|
 | "review this PR", "review PR #N", shares a PR URL | Full review flow |
-| "just run the tests on this PR" | Skip droid dispatch and posting; summarize existing PR checks first and rerun local checks only if the user explicitly asks or a repro is needed |
+| "just run the tests on this PR" | Skip reviewer dispatch and posting; summarize existing PR checks first and rerun local checks only if the user explicitly asks or a repro is needed |
 | "post the review" | Post previously approved findings from a temporary saved report/payload when available |
 
 ## Flow
 
 ### 0. Resolve Context and Review Artifacts
 
-Use `gh` CLI (NOT FetchUrl -- enterprise repos hit SSO walls):
+After resolving the PR number and repo context, use `gh` CLI (NOT FetchUrl -- enterprise repos hit SSO walls):
 
 ```bash
 gh pr view <number> --json title,body,files,commits,headRefName,baseRefName,state,additions,deletions,statusCheckRollup
@@ -42,13 +42,17 @@ gh pr checks <number>
    - Otherwise try `gh pr view --json number --jq '.number'` from the current branch.
    - If neither works, ask the user for the PR number.
 2. Determine the GitHub `owner/repo` slug from `git remote get-url origin`.
-3. Determine `<REPO_NAME>` from `git rev-parse --show-toplevel` for local artifact paths.
+3. Determine local path variables for artifact and worktree paths:
+   - `REPO_ROOT="$(git rev-parse --show-toplevel)"`
+   - `REPO_NAME="$(basename "$REPO_ROOT")"`
 4. Resolve artifact locations:
-   - Worktree path: `~/git/worktrees/<REPO_NAME>/pr-<NUMBER>`
+   - `WORKTREES_ROOT="${WORKTREES_ROOT:-$HOME/git/worktrees}"`
+   - `WORKTREE_PATH="$WORKTREES_ROOT/$REPO_NAME/pr-<NUMBER>"`
    - Report directory: first look for agent output/work artifact guidance in `AGENTS.md`, `.agents/AGENTS.md`, `.factory/AGENTS.md`, or `.agent/AGENTS.md`
    - If the repo defines only a base artifact/work directory, nest PR review artifacts under `pr-reviews/pr-<NUMBER>/`
    - If no repo-specific artifact directory is defined, fall back to `<REPO_ROOT>/.agents/work/pr-reviews/pr-<NUMBER>/`
    - Only if there is no natural project-local home, fall back to `~/.agents/work/pr-reviews/<owner>/<repo>/pr-<NUMBER>/`
+   - Set `REPORT_DIR` to the final resolved PR-specific directory before writing any review artifacts
 5. Treat everything in `<REPORT_DIR>` as temporary recovery artifacts, not durable records.
    - The PR itself is the source of truth once the review is posted successfully
    - These files exist only to support approval, retry, or crash recovery
@@ -65,9 +69,12 @@ gh pr checks <number>
    - diff stats
    - PR check status / relevant CI job results
    - linked tickets if present
-9. Print a short summary for the user:
+9. Capture the exact PR head SHA and `baseRefName` once.
+   - Use that pinned SHA for payload posting and line validation.
+   - Use the resolved base branch everywhere you need an affected-file or diff comparison; do not hardcode `origin/main`.
+10. Print a short summary for the user:
    - PR title and number
-   - base <- head
+   - base <- head @ pinned SHA
    - additions/deletions and changed-file count
    - PR check summary
    - PR URL
@@ -95,13 +102,13 @@ Review in a detached worktree. Do not `git checkout` the PR branch in the user's
 
 ```bash
 git fetch origin <headRefName>
-git worktree add ~/git/worktrees/<REPO_NAME>/pr-<NUMBER> origin/<headRefName> --detach
+git worktree add "$WORKTREE_PATH" "origin/<headRefName>" --detach
 ```
 
 1. If the target worktree path already exists, remove and recreate it only if it is clearly disposable.
 2. Do not install dependencies or start services yet unless a later review or runtime-validation step actually needs them.
 3. If worktree creation fails, warn the user and ask before falling back to a diff-only review.
-4. If the PR diff exceeds roughly 500 lines, save it to `<WORKTREE_PATH>/pr-<NUMBER>-diff.txt` and use that file path in reviewer prompts instead of inlining the full diff.
+4. If the PR diff exceeds roughly 500 lines, save it to `<REPORT_DIR>/pr-<NUMBER>-diff.txt` and use that file path in reviewer prompts instead of inlining the full diff.
 5. Keep the user's main checkout untouched throughout the review.
 
 ### 3. Summarize Existing PR Checks
@@ -162,8 +169,8 @@ If the early reviewer pass finds obvious blocking defects or major unresolved pr
 
 If optional reviewer families are skipped, note that explicitly in the final summary and report.
 
-Each gets the same core context:
-- PR number, title, URL, base branch, and head branch
+Each reviewer gets the same core context:
+- PR number, title, URL, base branch, head branch, and pinned head SHA
 - PR description/body
 - absolute worktree path
 - full changed-file list
@@ -234,10 +241,10 @@ Normalize reviewer-specific outputs into a common findings list, then merge:
 - Suggestions and positive observations remain non-blocking items
 
 Then consolidate:
-- **Consensus items**: flagged by 2+ droids -> higher confidence
-- **Unique items**: flagged by only 1 droid -> still include but note
-- Deduplicate (same finding on same line from multiple droids)
-- When multiple droids assess the same location differently, keep the majority assessment and note dissent
+- **Consensus items**: flagged by 2+ reviewers -> higher confidence
+- **Unique items**: flagged by only 1 reviewer -> still include but note
+- Deduplicate (same finding on same line from multiple reviewers)
+- When multiple reviewers assess the same location differently, keep the majority assessment and note dissent
 - Group by severity: Critical > High > Medium > Low
 - Include positive findings too (good patterns, nice changes)
 
@@ -263,7 +270,7 @@ Include:
 - per-reviewer confidence percentages and rationales
 - traceability and drift summary
 - consolidated findings grouped by severity
-- which droids agreed on each finding
+- which reviewers agreed on each finding
 - the proposed review action: `APPROVE`, `REQUEST_CHANGES`, or `COMMENT`
 
 Save intermediate artifacts when useful:
@@ -399,6 +406,7 @@ Severity levels:
 
 - **Never post without user approval.** Always present findings first.
 - **Prefer worktrees over checkout/stash.** Do not disturb the user's current branch/state unless they explicitly ask.
+- **Use `WORKTREES_ROOT` when constructing worktree paths.** Default to `$HOME/git/worktrees` only when the environment variable is unset.
 - **Run reviewers before heavy validation.** Use the early reviewer pass to decide whether runtime/browser/API validation is worth the time.
 - **Don't duplicate healthy CI by default.** Prefer existing PR checks for lint/typecheck/build/test status; rerun locally only when the user asks or a repro is needed.
 - **Don't post a wall-of-text comment.** Use inline comments on specific lines where possible.
@@ -416,6 +424,6 @@ Severity levels:
 ## Error Handling
 
 - If `gh` is not authenticated, instruct the user to run `gh auth login`.
-- If a reviewer droid fails, record the most specific reason available (`provider error`, `timed out`, `no result`, etc.), continue with the remaining results, and note the missing reviewer.
+- If a reviewer fails, record the most specific reason available (`provider error`, `timed out`, `no result`, etc.), continue with the remaining results, and note the missing reviewer.
 - If the worktree cannot be created, ask whether to continue with a diff-only review.
 - If local reproduction or runtime validation fails due to environment/auth setup, report the blocker clearly and do not silently skip the step.
