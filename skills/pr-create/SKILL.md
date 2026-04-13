@@ -1,9 +1,9 @@
 ---
 name: pr-create
 description: |
-  Create a pull request with author-side validation, evidence capture, and pre-filled
-  template content from branch and Jira context. Use when the user says "create PR",
-  "open a PR", or is ready to publish the current branch.
+  Create a pull request with clean, concise template content, author-side validation,
+  and evidence capture from branch and Jira context. Use when the user says
+  "create PR", "open a PR", or is ready to publish the current branch.
 disable-model-invocation: true
 ---
 
@@ -16,6 +16,7 @@ This is the author-side readiness workflow:
 - run the validation that should happen before opening the PR
 - capture evidence and remaining manual follow-up clearly
 - capture a PDLC-aligned audit trail in the PR body
+- keep the PR body clean and concise
 - show the PR body before creating anything
 
 Independent re-validation belongs to the `pr-review` skill.
@@ -105,13 +106,25 @@ This audit trail should live in the PR body, not only in temporary local notes.
 
 Read `.github/PULL_REQUEST_TEMPLATE.md` and fill it out.
 
+Keep the PR body clean:
+- prefer the repo's existing template structure over inventing new sections
+- summarize results instead of pasting raw command output, logs, stack traces, or API payloads
+- keep descriptions and audit notes concise
+- if a section has nothing meaningful to say, mark it clearly and move on
+
 ### Description
 - Summarize what changed based on commits and diff
 - Reference the Jira story context if available
+- Keep it to one short paragraph or a few bullets, not a changelog
 
 ### Jira Link
 - Format: `https://<instance>.atlassian.net/browse/<TICKET-ID>` if a Jira ID is found
 - Otherwise omit it or mark it `N/A`
+
+### Validation Results
+- If the repo template already has a testing/verification section, use that instead of inventing a second one
+- Prefer a short check/result summary over prose
+- Include only the checks actually run in this session plus any clearly blocked items
 
 ### Author Checklist
 - Check items only when they were actually verified in this run
@@ -121,10 +134,12 @@ Read `.github/PULL_REQUEST_TEMPLATE.md` and fill it out.
 - Describe what was already validated in this run
 - List any API endpoints, UI flows, or smoke paths the reviewer should still verify manually
 - If validation was blocked, state the blocker directly
+- Keep this to reviewer-facing next steps, not a dump of everything you already did
 
 ### Screenshots / Evidence
 - If screenshots or other validation artifacts were captured, list them for attachment or reference
 - If no artifacts were captured, say so plainly
+- Reference artifact names or paths only; do not paste raw evidence into the PR body
 
 ### Audit Trail / Traceability
 - Include the work-item, Jira, blueprint, or spec references that explain why the change exists
@@ -132,16 +147,52 @@ Read `.github/PULL_REQUEST_TEMPLATE.md` and fill it out.
 - Summarize validation evidence, skipped checks, and blockers
 - Note the current drift assessment (`none known`, `intentional`, or `suspected`)
 - Include token/cost usage when available from the tool or harness; otherwise mark it `not available`
+- Keep this section to short bullets; do not turn the PR body into a long audit document
 
 If the template has no natural place for this information, add a short `Audit Trail` section rather than dropping it.
 
-If the repo has no PR template, use a sensible default body with:
+If the repo has no PR template, use this clean default body shape:
 - description
-- validation summary
-- audit trail
+- Jira link
+- validation results
 - test steps
 - screenshots / evidence
+- audit trail
 - checklist
+
+Preferred default shape:
+
+```markdown
+## Description
+- Short summary of what changed and why
+
+## Jira Link
+- PROJ-123
+
+## Validation Results
+| Check | Result |
+|-------|--------|
+| Lint | ✅ Passed |
+| Typecheck | ✅ Passed |
+| Build | ⏭️ Not run |
+| Automated Tests | ✅ Passed |
+| Manual Runtime Validation | ⏭️ Reviewer should verify UI flow X |
+
+## Test Steps
+- Reviewer follow-up or remaining manual checks
+
+## Screenshots / Evidence
+- Screenshot names or evidence paths
+
+## Audit Trail
+- Jira/work-item/spec refs
+- Drift status
+- Key blockers or remaining reviewer attention
+- Token/cost usage: `not available`
+
+## Checklist
+- Template or repo checklist items
+```
 
 ## 5. Show PR Preview
 
@@ -170,7 +221,7 @@ Use the first commit message or the user's preferred title as the PR title. Keep
 ## 7. Report Success
 
 - Display the PR URL
-- Summarize the validation evidence and audit-trail details included in the PR body
+- Summarize the validation evidence and short audit-trail details included in the PR body
 - Ask: `Would you like me to add a comment to the Jira ticket with the PR link?`
 
 ## Important Notes
@@ -181,4 +232,4 @@ Use the first commit message or the user's preferred title as the PR title. Keep
 - Use the repo's actual default branch unless the user overrides it
 - Validation should be honest: if something was not run, leave it unchecked and say so
 - When runtime validation is blocked, record the blocker rather than pretending the branch is fully verified
-- Keep the PR body traceable: include drift status and token/cost usage when available instead of burying that context in chat history
+- Keep the PR body clean and traceable: include drift status and token/cost usage when available without burying the useful summary in audit detail

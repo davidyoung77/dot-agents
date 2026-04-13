@@ -175,5 +175,5 @@ as completed in the PM tool.
 
 - The mission itself should NOT run reviewers. That's the orchestrator's job post-mission.
 - Reviewer agents/droids live in `~/.agents/sub-agents/` and are synced into the supported tools.
-- If some reviewer passes timeout or fail, results from the remaining useful passes are sufficient when there is still enough signal.
+- If some reviewer passes fail, timeout, provider error, or no-result, results from the remaining useful passes are sufficient when there is still enough signal.
 - Smoke tests catch what reviewers can't: shared resource contention, connection pool exhaustion, cold-start hangs.
