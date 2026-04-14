@@ -253,8 +253,19 @@ Also capture lightweight review metadata for the temp report and posted body:
 - traceability refs found or missing
 - blueprint/requirements drift conclusions when optional reviewer families ran
 - PR check coverage plus any local reproduction and runtime coverage, skips, and blockers
-- token/cost usage by reviewer or phase when available
+- token/cost usage by reviewer or phase only when the active tool or structured run output exposes exact values
 - any remaining evidence gaps the human reviewer should know
+
+### Usage Capture Guidance
+
+- For headless scripted runs, prefer structured JSON output and normalize a canonical usage block into a one-line summary with `~/.agents/bin/extract-agent-usage`.
+- The helper expects either a top-level exact usage object or a canonical nested `usage` block.
+- Cursor headless example: `cursor-agent --print --output-format json "<prompt>" | ~/.agents/bin/extract-agent-usage`
+- Factory / Droid headless runs: if the harness or mission exports structured JSON with exact usage fields, pass that JSON through `~/.agents/bin/extract-agent-usage` or copy the exact exposed values directly.
+- Use the helper on a single run/reviewer export or on a single exact rolled-up usage block already exposed by the harness.
+- If the workflow spans multiple runs or reviewers, record usage per run/reviewer unless the harness already exposes one exact rolled-up total block.
+- If the export contains multiple competing usage blocks or no canonical exact usage block, record `not available` rather than guessing.
+- If the active tool or run does not expose exact usage or cost, record `not available`.
 
 ### 7. Write Temporary Recovery Artifacts
 
@@ -411,7 +422,7 @@ Severity levels:
 - **Don't duplicate healthy CI by default.** Prefer existing PR checks for lint/typecheck/build/test status; rerun locally only when the user asks or a repro is needed.
 - **Don't post a wall-of-text comment.** Use inline comments on specific lines where possible.
 - **Keep the review format clean.** Default to `Code Review` title plus `Validation Results`, `Reviewer Matrix`, and `Summary`.
-- **Keep the review auditable.** The temp report should preserve the detailed traceability, drift, and usage/cost context; promote only the highest-signal items into the posted body.
+- **Keep the review auditable.** The temp report should preserve the detailed traceability, drift, and exact usage/cost context when the active tool exposes it; otherwise use `not available` and promote only the highest-signal items into the posted body.
 - **Be explicit about review diversity.** Distinguish true cross-model agreement from prompt-diverse agreement when the platform cannot assign different models per reviewer.
 - **Include PR check results and manual runtime validation** in the review body summary.
 - **Include reviewer confidence lightly.** Prefer inline percentages in the reviewer matrix over a separate confidence section.

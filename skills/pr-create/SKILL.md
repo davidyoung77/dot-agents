@@ -98,7 +98,18 @@ Build a concise author-side audit trail aligned with PDLC traceability:
   - intentional drift with explanation and follow-up
   - suspected drift that `pr-review` should verify
 - record what still needs reviewer attention or manual verification
-- capture model, token, and cost usage for agent sessions used to prepare the PR when the tool exposes it; if unavailable, say `not available` rather than estimating
+- capture model, token, and cost usage for agent sessions used to prepare the PR only when the active tool or structured run output exposes exact values; never estimate or back-calculate it
+
+### Usage Capture Guidance
+
+- For headless scripted runs, prefer structured JSON output and normalize a canonical usage block into a one-line summary with `~/.agents/bin/extract-agent-usage`.
+- The helper expects either a top-level exact usage object or a canonical nested `usage` block.
+- Cursor headless example: `cursor-agent --print --output-format json "<prompt>" | ~/.agents/bin/extract-agent-usage`
+- Factory / Droid headless runs: if the harness or mission exports structured JSON with exact usage fields, pass that JSON through `~/.agents/bin/extract-agent-usage` or copy the exact exposed values directly.
+- Use the helper on a single run export or on a single exact rolled-up usage block already exposed by the harness.
+- If the workflow spans multiple runs, record usage per run unless the harness already exposes one exact rolled-up total block.
+- If the export contains multiple competing usage blocks or no canonical exact usage block, record `not available` rather than guessing.
+- If the active tool or run does not expose exact usage or cost, record `not available`.
 
 This audit trail should live in the PR body, not only in temporary local notes.
 
@@ -232,4 +243,4 @@ Use the first commit message or the user's preferred title as the PR title. Keep
 - Use the repo's actual default branch unless the user overrides it
 - Validation should be honest: if something was not run, leave it unchecked and say so
 - When runtime validation is blocked, record the blocker rather than pretending the branch is fully verified
-- Keep the PR body clean and traceable: include drift status and token/cost usage when available without burying the useful summary in audit detail
+- Keep the PR body clean and traceable: include drift status and exact token/cost usage only when the active tool exposes it, otherwise use `not available` without burying the useful summary in audit detail

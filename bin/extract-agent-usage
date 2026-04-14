@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+import json
+import sys
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+TOKEN_ALIASES = {
+    "inputTokens": ("inputTokens", "input_tokens", "promptTokens", "prompt_tokens"),
+    "outputTokens": ("outputTokens", "output_tokens", "completionTokens", "completion_tokens"),
+    "cacheReadTokens": ("cacheReadTokens", "cache_read_tokens"),
+    "cacheWriteTokens": ("cacheWriteTokens", "cache_write_tokens"),
+    "totalTokens": ("totalTokens", "total_tokens"),
+}
+
+COST_ALIASES = ("cost", "usdCost", "usd_cost", "costUsd", "cost_usd")
+PREFERRED_USAGE_KEYS = ("usage",)
+
+
+def read_text() -> str:
+    if len(sys.argv) > 1 and sys.argv[1] != "-":
+        return Path(sys.argv[1]).read_text()
+    return sys.stdin.read()
+
+
+def parse_payloads(raw: str) -> List[object]:
+    text = raw.strip()
+    if not text:
+        return []
+    try:
+        return [json.loads(text)]
+    except json.JSONDecodeError:
+        payloads: List[object] = []
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                payloads.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+        return payloads
+
+
+def parse_number(value):
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            try:
+                return float(value)
+            except ValueError:
+                return None
+    return None
+
+
+def normalize_candidate(node: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    result: Dict[str, Any] = {}
+    for field, aliases in TOKEN_ALIASES.items():
+        for alias in aliases:
+            if alias in node:
+                parsed = parse_number(node[alias])
+                if parsed is not None:
+                    result[field] = int(parsed)
+                    break
+    for alias in COST_ALIASES:
+        if alias in node:
+            cost = node[alias]
+            parsed = parse_number(cost)
+            result["cost"] = parsed if parsed is not None else cost
+            break
+    return result or None
+
+
+def collect_candidates(node: Any, path: Tuple[str, ...] = ()) -> List[Tuple[Tuple[str, ...], Dict[str, Any]]]:
+    matches: List[Tuple[Tuple[str, ...], Dict[str, Any]]] = []
+    if isinstance(node, dict):
+        candidate = normalize_candidate(node)
+        if candidate:
+            matches.append((path, candidate))
+        for key, value in node.items():
+            matches.extend(collect_candidates(value, path + (str(key),)))
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            matches.extend(collect_candidates(value, path + (str(index),)))
+    return matches
+
+
+def is_preferred_usage_path(path: Tuple[str, ...]) -> bool:
+    return bool(path) and path[-1] in PREFERRED_USAGE_KEYS
+
+
+def extract_payload_usage(payload: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(payload, (dict, list)):
+        return None
+
+    candidates = collect_candidates(payload)
+    if not candidates:
+        return None
+
+    preferred = [candidate for path, candidate in candidates if is_preferred_usage_path(path)]
+    if len(preferred) == 1:
+        return preferred[0]
+    if len(preferred) > 1:
+        return None
+
+    if len(candidates) == 1 and candidates[0][0] == ():
+        return candidates[0][1]
+
+    return None
+
+
+def format_summary(summary: Optional[Dict[str, Any]]) -> str:
+    if not summary:
+        return "not available"
+    parts: List[str] = []
+    for field in ("inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens", "totalTokens"):
+        if field in summary:
+            parts.append(f"{field}={summary[field]}")
+    if "cost" in summary:
+        parts.append(f"cost={summary['cost']}")
+    else:
+        parts.append("cost=not available")
+    return ", ".join(parts)
+
+
+def main() -> int:
+    try:
+        raw = read_text()
+        payloads = parse_payloads(raw)
+    except OSError:
+        print("not available")
+        return 0
+
+    candidates: List[Dict[str, Any]] = []
+    for payload in payloads:
+        candidate = extract_payload_usage(payload)
+        if candidate:
+            candidates.append(candidate)
+
+    if len(candidates) != 1:
+        print("not available")
+        return 0
+
+    print(format_summary(candidates[0]))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
