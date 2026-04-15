@@ -224,6 +224,14 @@ When warranted:
   - API endpoints exercised and status codes
   - blockers and follow-up manual verification needed
 
+Evidence defaults:
+- If the PR changes user-visible UI behavior, capture screenshots by default during runtime validation.
+- Prefer before/after screenshots for behavior changes or bug fixes; for wholly new UI, an after screenshot is acceptable if there is no meaningful before state.
+- If screenshots were not captured for a UI change, call that out as an evidence gap in the review summary or temp report.
+- If the PR changes API behavior, capture concrete API evidence by default.
+- API evidence should include the endpoint or route, method, status code, and the key response shape or behavior that was validated.
+- If auth, permissions, or failure handling changed, try to capture at least one representative non-happy-path result too; if not possible, call that gap out explicitly.
+
 If runtime validation requires auth/credentials and blocks:
 - check for project-specific refresh commands (`.agents/commands/refresh-tokens.md` or legacy `.factory/commands/refresh-tokens.md`)
 - check for auth helper scripts

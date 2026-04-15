@@ -4,7 +4,6 @@ description: |
   Create a pull request with clean, concise template content, author-side validation,
   and evidence capture from branch and Jira context. Use when the user says
   "create PR", "open a PR", or is ready to publish the current branch.
-disable-model-invocation: true
 ---
 
 # PR Create
@@ -82,6 +81,14 @@ This skill owns author-side validation before the PR is opened.
 - API endpoints exercised and status codes
 - blockers and any remaining manual verification the reviewer should do
 
+Evidence defaults:
+- If the branch changes user-visible UI behavior, capture screenshots by default.
+- Prefer before/after screenshots for behavior changes or bug fixes; for wholly new UI, an after screenshot is acceptable if there is no meaningful before state.
+- If screenshots were not captured for a UI change, explain why in the PR body instead of silently omitting them.
+- If the branch changes API behavior, capture concrete API evidence by default.
+- API evidence should include the endpoint or route, method, status code, and the key response shape or behavior that was validated.
+- If auth, permissions, or failure handling changed, try to capture at least one representative non-happy-path result too; if not possible, call that gap out explicitly.
+
 If runtime validation was warranted but not run, say so explicitly and carry that gap into the PR body.
 
 ## 3b. Audit Trail and Traceability
@@ -148,6 +155,8 @@ Keep the PR body clean:
 - Keep this to reviewer-facing next steps, not a dump of everything you already did
 
 ### Screenshots / Evidence
+- For user-visible UI changes, screenshots are expected by default; list before/after artifacts when they exist, or explain why screenshots were not captured
+- For API changes, list the exercised endpoints, methods, status codes, and any saved evidence artifacts or notes
 - If screenshots or other validation artifacts were captured, list them for attachment or reference
 - If no artifacts were captured, say so plainly
 - Reference artifact names or paths only; do not paste raw evidence into the PR body
