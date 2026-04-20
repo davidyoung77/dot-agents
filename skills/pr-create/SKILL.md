@@ -2,7 +2,7 @@
 name: pr-create
 description: |
   Create a pull request with clean, concise template content, author-side validation,
-  and evidence capture from branch and Jira context. Use when the user says
+  and evidence capture from branch and work item context. Use when the user says
   "create PR", "open a PR", or is ready to publish the current branch.
 ---
 
@@ -41,9 +41,32 @@ Independent re-validation belongs to the `pr-review` skill.
 
 ## 2. Extract Context
 
-- Parse the Jira ID from the branch name (for example `feature/PROJ-123/description` -> `PROJ-123`)
-- If a Jira ID is found, fetch the issue details for context (summary, acceptance criteria)
-- If no Jira ID is found, ask the user for the missing context
+- Parse work item references only from explicit sources:
+  - the branch name (for example `feature/PROJ-123/description` or `feature/WO-123/description`)
+  - work item refs the user explicitly provided for the current task in this conversation
+  - work item refs explicitly present in current-branch commit subjects
+- Do not infer work item refs from unrelated chat history, vague prior context, or examples that were not clearly given as the source of truth for this PR
+- Treat branch-matched refs and explicit user-provided refs as in-scope candidates for the PR body; use the precedence rules below to choose a primary work item when one exists
+- If no user-provided or branch-matched ref exists, treat a single consistent commit-subject-discovered ref as an in-scope candidate only when the current-branch commit subjects consistently point to the same work item and do not look like merge, cherry-pick, or revert noise
+- Otherwise treat commit-subject-discovered refs as secondary candidates; include or backlink them only when they clearly represent the same tracked work for this PR or the user confirms they should be included
+- If a Jira ID is found, fetch the issue details and sharable link for context
+- If a Jira lookup fails, keep the raw Jira identifier in plain text and do not invent a link or title you cannot confirm
+- If an 8090 work order reference is found, fetch the work order details only when the specific 8090 project for this PR's work is confirmed by explicit user input or an earlier explicit project-resolution step in this workflow
+- Include a sharable 8090 link only when the active tool explicitly exposes one; do not synthesize or guess 8090 URLs
+- If the 8090 project is confirmed but no sharable link is exposed, use a plain-text fallback like `project-name / WO-123`
+- If an 8090 work order reference is found but the specific project is not confirmed, ask the user which 8090 project it belongs to before attempting project-specific lookup, backlinking, or including a plain-text WO reference in the PR body
+- If an 8090 lookup fails after the project is confirmed, keep a plain-text fallback like `project-name / WO-123` and do not invent a title or link
+- If other explicit work item refs are provided, include them in the PR body only when the active tool exposes a confirmed sharable link/details, the identifier is unambiguous to reviewers, or the user explicitly wants the plain-text ref included
+- If multiple in-scope work item references are found, keep them all and render them together in the PR body
+- If multiple work item references are found, use this precedence for the primary work item context in the PR description:
+  - a user-designated primary item, or otherwise the single explicit work item the user provided for this PR in the current task
+  - otherwise the single branch-matched item
+  - otherwise the single consistent commit-subject-discovered ref when no conflicting user-provided or branch-matched ref exists
+  - otherwise ask the user which work item should be primary before naming one in the PR description
+- If at least one confirmed or unambiguous work item ref exists, include the `Work Item References` section
+- If no work item reference can be resolved and the repo template treats refs as optional and the user has not mentioned a work item for this PR, omit the section
+- Otherwise ask the user before omitting it
+- If branch naming, commit subjects, or the user request suggest a work item probably exists but it could not be resolved cleanly, ask the user before omitting it
 
 ## 3. Validation Readiness
 
@@ -96,7 +119,7 @@ If runtime validation was warranted but not run, say so explicitly and carry tha
 Build a concise author-side audit trail aligned with PDLC traceability:
 - `requirement/work item/blueprint/spec -> commit -> PR -> validation result`
 - capture explicit references when available:
-  - Jira or work item IDs
+  - work item IDs or keys (Jira, 8090, etc.)
   - blueprint/spec/requirements docs
   - commits included in the PR
   - validation commands, evidence, and blockers
@@ -132,12 +155,15 @@ Keep the PR body clean:
 
 ### Description
 - Summarize what changed based on commits and diff
-- Reference the Jira story context if available
+- Reference the primary work item context if available
 - Keep it to one short paragraph or a few bullets, not a changelog
 
-### Jira Link
-- Format: `https://<instance>.atlassian.net/browse/<TICKET-ID>` if a Jira ID is found
-- Otherwise omit it or mark it `N/A`
+### Work Item References
+- Include Jira and 8090 sharable links when available
+- For other trackers or plain explicit refs, include them only when the user explicitly wants them, the identifier is unambiguous to reviewers, or a confirmed link/details are available
+- If a sharable link is not available, include a plain-text work item reference only when the identifier is unambiguous for reviewers or the user explicitly wants it shown as-is
+- If multiple work item references exist, list all of them
+- If no work item references exist, omit the section or mark it `N/A` only when the repo template requires a placeholder
 
 ### Validation Results
 - If the repo template already has a testing/verification section, use that instead of inventing a second one
@@ -162,7 +188,7 @@ Keep the PR body clean:
 - Reference artifact names or paths only; do not paste raw evidence into the PR body
 
 ### Audit Trail / Traceability
-- Include the work-item, Jira, blueprint, or spec references that explain why the change exists
+- Include the work-item references (Jira, 8090, etc.), blueprint, or spec references that explain why the change exists
 - Summarize commits in scope when helpful
 - Summarize validation evidence, skipped checks, and blockers
 - Note the current drift assessment (`none known`, `intentional`, or `suspected`)
@@ -173,7 +199,7 @@ If the template has no natural place for this information, add a short `Audit Tr
 
 If the repo has no PR template, use this clean default body shape:
 - description
-- Jira link
+- work item references
 - validation results
 - test steps
 - screenshots / evidence
@@ -186,7 +212,7 @@ Preferred default shape:
 ## Description
 - Short summary of what changed and why
 
-## Jira Link
+## Work Item References
 - PROJ-123
 
 ## Validation Results
@@ -205,7 +231,7 @@ Preferred default shape:
 - Screenshot names or evidence paths
 
 ## Audit Trail
-- Jira/work-item/spec refs
+- Work item/spec refs
 - Drift status
 - Key blockers or remaining reviewer attention
 - Token/cost usage: `not available`
@@ -242,7 +268,7 @@ Use the first commit message or the user's preferred title as the PR title. Keep
 
 - Display the PR URL
 - Summarize the validation evidence and short audit-trail details included in the PR body
-- Ask: `Would you like me to add a comment to the Jira ticket with the PR link?`
+- Ask: `Would you like me to add the PR link back to the linked work item(s) where the tool supports it?`
 
 ## Important Notes
 

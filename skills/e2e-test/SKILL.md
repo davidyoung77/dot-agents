@@ -147,11 +147,11 @@ test creation.
    - **Test candidates**: flows that would make good E2E tests
 
 5. **Follow-up**: Offer to:
-   - **Create stories** -- generate Jira stories from findings:
+   - **Create stories** -- generate follow-up work items from findings:
      - **Bug stories** for broken links, errors, console errors, empty states
      - **E2E test stories** for discovered flows that need test coverage
      - **Improvement stories** for UX issues, missing states, accessibility gaps
-     Use the `jira-create` skill or Atlassian MCP to create stories.
+     Use the `work-item-create` skill or the active planning tool's MCP to create them.
      Group related findings into single stories rather than 1:1 mapping.
    - **Generate tests** for discovered flows (switches to Autonomous mode)
    - **Deep-dive** into a specific page or section
